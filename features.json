@@ -5,5 +5,12 @@
     "plan_node": "Scan",
     "status": "supported",
     "query_dir": "queries/01-select-star"
+  },
+  {
+    "id": "column-projection",
+    "sql": "SELECT col1, col2 FROM <table>",
+    "plan_node": "Project",
+    "status": "supported",
+    "query_dir": "queries/02-column-projection"
   }
 ]

@@ -1,4 +1,4 @@
-from frontend.lexer import tokenize, TK_SELECT, TK_FROM, TK_STAR, TK_IDENT, TK_SEMI, TK_EOF
+from frontend.lexer import tokenize, TK_SELECT, TK_FROM, TK_STAR, TK_IDENT, TK_SEMI, TK_COMMA, TK_EOF
 
 
 def parse(sql: str) -> dict:
@@ -6,6 +6,8 @@ def parse(sql: str) -> dict:
 
     Only SELECT statements are supported. Returns:
         {"type": "select", "columns": ["*"], "from": "<table_name>"}
+      or
+        {"type": "select", "columns": ["col1", "col2", ...], "from": "<table_name>"}
 
     Raises ValueError on syntax errors.
     """
@@ -31,8 +33,13 @@ def parse(sql: str) -> dict:
     if t.type == TK_STAR:
         consume(TK_STAR)
         columns = ["*"]
+    elif t.type == TK_IDENT:
+        columns = [consume(TK_IDENT).value]
+        while peek().type == TK_COMMA:
+            consume(TK_COMMA)
+            columns.append(consume(TK_IDENT).value)
     else:
-        raise ValueError(f"Expected *, got {t.type!r} ({t.value!r})")
+        raise ValueError(f"Expected * or column name, got {t.type!r} ({t.value!r})")
 
     consume(TK_FROM)
     table_token = consume(TK_IDENT)

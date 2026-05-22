@@ -25,4 +25,18 @@ Reads all rows from a named table stored as a CSV in `data/`.
 }
 ```
 
-`columns: "*"` returns all columns in CSV order. A future `Project` node will allow selecting a subset of columns.
+`columns: "*"` returns all columns in CSV order.
+
+### Project
+
+Keeps a strict ordered subset of columns from its source node.
+
+```json
+{
+  "type": "Project",
+  "source": { "type": "Scan", "table": "employees", "columns": "*" },
+  "columns": ["id", "name"]
+}
+```
+
+`columns` is an ordered list of column names; the executor emits rows with only those columns in the listed order. `source` may be any plan node (recursive composition).
