@@ -1,7 +1,4 @@
 """Unit tests for engine: storage and executor."""
-import csv
-from pathlib import Path
-
 import pytest
 
 from engine.executor import execute

@@ -12,7 +12,5 @@ def plan(sql: str) -> dict:
     """
     ast = parse(sql)
     if ast["type"] == "select":
-        columns = ast["columns"]
-        col_plan = "*" if columns == ["*"] else columns
-        return {"type": "Scan", "table": ast["from"], "columns": col_plan}
+        return {"type": "Scan", "table": ast["from"], "columns": "*"}
     raise ValueError(f"Unsupported statement type: {ast['type']!r}")

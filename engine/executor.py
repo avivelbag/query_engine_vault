@@ -14,7 +14,4 @@ def execute(plan: dict) -> list[dict]:
 
 
 def _scan(plan: dict) -> list[dict]:
-    rows = load_table(plan["table"])
-    if plan["columns"] == "*":
-        return rows
-    return [{col: row[col] for col in plan["columns"]} for row in rows]
+    return load_table(plan["table"])
