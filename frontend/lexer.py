@@ -5,6 +5,7 @@ TK_FROM = "FROM"
 TK_STAR = "STAR"
 TK_IDENT = "IDENT"
 TK_SEMI = "SEMI"
+TK_COMMA = "COMMA"
 TK_EOF = "EOF"
 
 _KEYWORDS = {"SELECT": TK_SELECT, "FROM": TK_FROM}
@@ -33,6 +34,9 @@ def tokenize(sql: str) -> list[Token]:
             i += 1
         elif c == ";":
             tokens.append(Token(TK_SEMI, ";"))
+            i += 1
+        elif c == ",":
+            tokens.append(Token(TK_COMMA, ","))
             i += 1
         elif c.isalpha() or c == "_":
             j = i
