@@ -1,0 +1,9 @@
+[
+  {
+    "id": "select-star",
+    "sql": "SELECT * FROM <table>",
+    "plan_node": "Scan",
+    "status": "supported",
+    "query_dir": "queries/01-select-star"
+  }
+]
