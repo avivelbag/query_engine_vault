@@ -1,13 +1,38 @@
-from frontend.lexer import tokenize, TK_SELECT, TK_FROM, TK_STAR, TK_IDENT, TK_SEMI, TK_COMMA, TK_EOF
+from frontend.lexer import (
+    tokenize,
+    TK_SELECT,
+    TK_FROM,
+    TK_WHERE,
+    TK_STAR,
+    TK_IDENT,
+    TK_SEMI,
+    TK_COMMA,
+    TK_EOF,
+    TK_EQ,
+    TK_NEQ,
+    TK_LT,
+    TK_LTE,
+    TK_GT,
+    TK_GTE,
+    TK_STRING_LIT,
+    TK_INT_LIT,
+    TK_FLOAT_LIT,
+)
+
+_COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
 
 
 def parse(sql: str) -> dict:
     """Parse a SQL string and return an AST dict.
 
     Only SELECT statements are supported. Returns:
-        {"type": "select", "columns": ["*"], "from": "<table_name>"}
+        {"type": "select", "columns": ["*"], "from": "<table_name>", "where": None}
       or
-        {"type": "select", "columns": ["col1", "col2", ...], "from": "<table_name>"}
+        {"type": "select", "columns": ["col1", ...], "from": "<table_name>",
+         "where": <predicate_expr> | None}
+
+    A predicate_expr is a BinOp dict from the expression sub-language defined in
+    spec/plan.md: {"type":"binop","op":"=","left":<expr>,"right":<expr>}.
 
     Raises ValueError on syntax errors.
     """
@@ -44,6 +69,11 @@ def parse(sql: str) -> dict:
     consume(TK_FROM)
     table_token = consume(TK_IDENT)
 
+    predicate = None
+    if peek().type == TK_WHERE:
+        consume(TK_WHERE)
+        predicate = _parse_comparison(peek, consume)
+
     if peek().type == TK_SEMI:
         consume(TK_SEMI)
 
@@ -51,4 +81,39 @@ def parse(sql: str) -> dict:
         t = peek()
         raise ValueError(f"Unexpected token {t.type!r} ({t.value!r}) after statement")
 
-    return {"type": "select", "columns": columns, "from": table_token.value}
+    return {"type": "select", "columns": columns, "from": table_token.value, "where": predicate}
+
+
+def _parse_comparison(peek, consume) -> dict:
+    """Parse a single comparison: <identifier> <comp_op> <literal>.
+
+    Returns a BinOp expression dict as defined in spec/plan.md.
+    Only column-op-literal form is supported (compound AND/OR is out of scope).
+    """
+    col_token = consume(TK_IDENT)
+    left = {"type": "col", "name": col_token.value}
+
+    op_token = peek()
+    if op_token.type not in _COMP_OPS:
+        raise ValueError(
+            f"Expected comparison operator, got {op_token.type!r} ({op_token.value!r})"
+        )
+    consume(op_token.type)
+    op = _COMP_OPS[op_token.type]
+
+    lit_token = peek()
+    if lit_token.type == TK_STRING_LIT:
+        consume(TK_STRING_LIT)
+        right = {"type": "lit", "value": lit_token.value}
+    elif lit_token.type == TK_INT_LIT:
+        consume(TK_INT_LIT)
+        right = {"type": "lit", "value": int(lit_token.value)}
+    elif lit_token.type == TK_FLOAT_LIT:
+        consume(TK_FLOAT_LIT)
+        right = {"type": "lit", "value": float(lit_token.value)}
+    else:
+        raise ValueError(
+            f"Expected a literal value, got {lit_token.type!r} ({lit_token.value!r})"
+        )
+
+    return {"type": "binop", "op": op, "left": left, "right": right}

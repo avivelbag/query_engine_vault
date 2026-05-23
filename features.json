@@ -12,5 +12,12 @@
     "plan_node": "Project",
     "status": "supported",
     "query_dir": "queries/02-column-projection"
+  },
+  {
+    "id": "where-filter",
+    "sql": "SELECT ... FROM <table> WHERE <col> <op> <literal>",
+    "plan_node": "Filter",
+    "status": "supported",
+    "query_dir": "queries/03-where-equality"
   }
 ]

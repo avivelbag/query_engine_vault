@@ -42,7 +42,7 @@ def test_coerce_zero():
 def test_load_table_employees():
     rows = load_table("employees")
     assert len(rows) == 5
-    assert rows[0] == {"id": 1, "name": "Alice", "department": "Engineering", "salary": 95000}
+    assert rows[0] == {"id": 1, "name": "Alice", "department": "Engineering", "salary": 95000, "age": 28}
 
 
 def test_load_table_returns_list_of_dicts():
@@ -104,7 +104,7 @@ def test_execute_scan_first_row():
 
 def test_execute_unknown_node_type_raises():
     with pytest.raises(ValueError, match="Unknown plan node type"):
-        execute({"type": "Filter", "table": "employees", "columns": "*"})
+        execute({"type": "Bogus", "table": "employees", "columns": "*"})
 
 
 def test_execute_missing_type_raises():
