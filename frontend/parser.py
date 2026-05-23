@@ -5,6 +5,7 @@ from frontend.lexer import (
     TK_WHERE,
     TK_STAR,
     TK_IDENT,
+    TK_QUALIFIED_IDENT,
     TK_SEMI,
     TK_COMMA,
     TK_EOF,
@@ -35,6 +36,9 @@ from frontend.lexer import (
     TK_AS,
     TK_GROUP,
     TK_HAVING,
+    TK_JOIN,
+    TK_INNER,
+    TK_ON,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -99,6 +103,15 @@ def parse(sql: str) -> dict:
     consume(TK_FROM)
     table_token = consume(TK_IDENT)
 
+    join_info = None
+    if peek().type == TK_INNER:
+        consume(TK_INNER)
+        consume(TK_JOIN)
+        join_table_token = consume(TK_IDENT)
+        consume(TK_ON)
+        join_on = _parse_comparison(peek, consume)
+        join_info = {"table": join_table_token.value, "on": join_on}
+
     predicate = None
     if peek().type == TK_WHERE:
         consume(TK_WHERE)
@@ -144,6 +157,7 @@ def parse(sql: str) -> dict:
         "type": "select",
         "columns": columns,
         "from": table_token.value,
+        "join": join_info,
         "where": predicate,
         "group_by": group_by,
         "having": having,
@@ -196,9 +210,14 @@ def _parse_agg_call(peek, consume, func_token) -> dict:
 def _parse_order_key(peek, consume) -> dict:
     """Parse a single ORDER BY key: <column> [ASC|DESC].
 
+    Accepts both bare identifiers and dot-qualified names (table.column).
     Direction defaults to 'asc' when omitted.
     """
-    col = consume(TK_IDENT).value
+    t = peek()
+    if t.type == TK_QUALIFIED_IDENT:
+        col = consume(TK_QUALIFIED_IDENT).value
+    else:
+        col = consume(TK_IDENT).value
     direction = "asc"
     if peek().type == TK_ASC:
         consume(TK_ASC)
@@ -215,6 +234,8 @@ def _parse_expr_atom(peek, consume) -> dict:
     Raises ValueError if no valid atom is found.
     """
     t = peek()
+    if t.type == TK_QUALIFIED_IDENT:
+        return {"type": "col", "name": consume(TK_QUALIFIED_IDENT).value}
     if t.type == TK_IDENT:
         return {"type": "col", "name": consume(TK_IDENT).value}
     if t.type == TK_INT_LIT:

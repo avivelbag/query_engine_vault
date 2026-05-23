@@ -1,6 +1,6 @@
-id,name,department,salary,age
-1,Alice,Engineering,95000,28
-2,Bob,Marketing,72000,35
-3,Carol,Engineering,110000,42
-4,Dave,HR,65000,29
-5,Eve,Marketing,78000,38
+id,name,department,salary,age,dept_id
+1,Alice,Engineering,95000,28,1
+2,Bob,Marketing,72000,35,2
+3,Carol,Engineering,110000,42,1
+4,Dave,HR,65000,29,3
+5,Eve,Marketing,78000,38,2

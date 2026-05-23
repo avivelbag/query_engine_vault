@@ -208,6 +208,34 @@ An aggregate function invocation in the SELECT list. The planner converts FuncCa
 
 `name` is the lowercase function name (`count`, `sum`, `avg`, `min`, `max`). `args` is a single-element list containing either a ColRef or `{"type":"col","name":"*"}` for `COUNT(*)`.
 
+### Join
+
+Combines rows from two independent plan subtrees using a nested-loop strategy. Only `kind: "inner"` is supported.
+
+```json
+{
+  "type": "Join",
+  "kind": "inner",
+  "left": {
+    "type": "Scan", "table": "employees", "columns": "*"
+  },
+  "right": {
+    "type": "Scan", "table": "departments", "columns": "*"
+  },
+  "on": {
+    "type": "binop", "op": "=",
+    "left":  {"type": "col", "name": "employees.dept_id"},
+    "right": {"type": "col", "name": "departments.id"}
+  }
+}
+```
+
+`left` and `right` may be any plan subtrees. `on` is an equality predicate using the same expression grammar as the `predicate` field of a Filter node. Column refs in `on` use qualified names (`table.column`).
+
+**Column-name policy:** Every column in a Join result row is qualified as `table.column` regardless of whether a name collision exists between the two sides. For example, if both tables have a column `name`, the output contains `employees.name` and `departments.name` — neither appears under the bare key `name`. This eliminates ambiguity when both sides share column names. All downstream nodes (Project, Sort, Filter, etc.) must reference join-result columns by their qualified names.
+
+**NULL-in-join-key rule:** A NULL join key never matches any value, including another NULL. This follows SQL three-valued logic: the ON predicate delegates to `eval_expr`, which returns `False` for any comparison involving `None`. As a result, rows where the join key is NULL are silently excluded from the result, consistent with INNER JOIN semantics in standard SQL.
+
 ## NULL Handling
 
 Any comparison involving a NULL value (Python `None`) yields `false`, regardless of the operator. This matches SQL three-valued logic: `NULL = NULL` is `false`, `NULL != NULL` is `false`, etc.

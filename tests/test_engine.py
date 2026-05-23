@@ -42,7 +42,7 @@ def test_coerce_zero():
 def test_load_table_employees():
     rows = load_table("employees")
     assert len(rows) == 5
-    assert rows[0] == {"id": 1, "name": "Alice", "department": "Engineering", "salary": 95000, "age": 28}
+    assert rows[0] == {"id": 1, "name": "Alice", "department": "Engineering", "salary": 95000, "age": 28, "dept_id": 1}
 
 
 def test_load_table_returns_list_of_dicts():

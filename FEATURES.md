@@ -11,3 +11,4 @@
 | Scalar arithmetic    | `SELECT col * lit AS alias … WHERE col op lit`          | Project   | queries/09-arithmetic-select   |
 | GROUP BY             | `SELECT col, AGG(*) AS alias … GROUP BY col`            | Aggregate | queries/11-group-by            |
 | HAVING               | `SELECT col, AGG(*) AS alias … GROUP BY col HAVING …`   | Aggregate | queries/12-group-by-having     |
+| INNER JOIN           | `SELECT t1.col, t2.col FROM t1 INNER JOIN t2 ON t1.k = t2.k` | Join | queries/13-inner-join      |
