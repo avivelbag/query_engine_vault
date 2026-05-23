@@ -27,7 +27,18 @@ def plan(sql: str) -> dict:
 
     cols = ast["columns"]
     scan = {"type": "Scan", "table": ast["from"], "columns": "*"}
-    source = scan
+
+    if ast.get("join"):
+        right_scan = {"type": "Scan", "table": ast["join"]["table"], "columns": "*"}
+        source: dict = {
+            "type": "Join",
+            "kind": "inner",
+            "left": scan,
+            "right": right_scan,
+            "on": ast["join"]["on"],
+        }
+    else:
+        source = scan
 
     if ast.get("where") is not None:
         source = {"type": "Filter", "source": source, "predicate": ast["where"]}

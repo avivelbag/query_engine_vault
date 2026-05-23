@@ -46,17 +46,17 @@ def test_lexer_three_column_list():
 
 def test_parser_single_column():
     ast = parse("SELECT id FROM employees")
-    assert ast == {"type": "select", "columns": ["id"], "from": "employees", "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
+    assert ast == {"type": "select", "columns": ["id"], "from": "employees", "join": None, "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
 
 
 def test_parser_two_columns():
     ast = parse("SELECT id, name FROM employees")
-    assert ast == {"type": "select", "columns": ["id", "name"], "from": "employees", "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
+    assert ast == {"type": "select", "columns": ["id", "name"], "from": "employees", "join": None, "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
 
 
 def test_parser_three_columns():
     ast = parse("SELECT id, name, department FROM employees;")
-    assert ast == {"type": "select", "columns": ["id", "name", "department"], "from": "employees", "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
+    assert ast == {"type": "select", "columns": ["id", "name", "department"], "from": "employees", "join": None, "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
 
 
 def test_parser_column_list_preserves_order():

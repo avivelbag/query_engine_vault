@@ -5,6 +5,7 @@ TK_FROM = "FROM"
 TK_WHERE = "WHERE"
 TK_STAR = "STAR"
 TK_IDENT = "IDENT"
+TK_QUALIFIED_IDENT = "QUALIFIED_IDENT"
 TK_SEMI = "SEMI"
 TK_COMMA = "COMMA"
 TK_EOF = "EOF"
@@ -40,6 +41,9 @@ TK_SLASH = "SLASH"
 TK_AS = "AS"
 TK_GROUP = "GROUP"
 TK_HAVING = "HAVING"
+TK_JOIN = "JOIN"
+TK_INNER = "INNER"
+TK_ON = "ON"
 
 _KEYWORDS = {
     "SELECT": TK_SELECT,
@@ -58,6 +62,9 @@ _KEYWORDS = {
     "AS": TK_AS,
     "GROUP": TK_GROUP,
     "HAVING": TK_HAVING,
+    "JOIN": TK_JOIN,
+    "INNER": TK_INNER,
+    "ON": TK_ON,
 }
 
 
@@ -167,8 +174,18 @@ def tokenize(sql: str) -> list[Token]:
                 j += 1
             word = sql[i:j]
             tok_type = _KEYWORDS.get(word.upper(), TK_IDENT)
-            tokens.append(Token(tok_type, word))
-            i = j
+            # Emit a QUALIFIED_IDENT (table.column) when a bare identifier is
+            # immediately followed by a dot and another identifier. Keywords
+            # are never combined into a qualified name.
+            if tok_type == TK_IDENT and j < len(sql) and sql[j] == "." and j + 1 < len(sql) and (sql[j + 1].isalpha() or sql[j + 1] == "_"):
+                k = j + 1
+                while k < len(sql) and (sql[k].isalnum() or sql[k] == "_"):
+                    k += 1
+                tokens.append(Token(TK_QUALIFIED_IDENT, sql[i:k]))
+                i = k
+            else:
+                tokens.append(Token(tok_type, word))
+                i = j
         else:
             raise ValueError(f"Unexpected character {c!r} at position {i}")
     tokens.append(Token(TK_EOF, ""))

@@ -392,7 +392,7 @@ def test_execute_filter_preserves_all_columns():
         },
     }
     rows = execute(p)
-    assert set(rows[0].keys()) == {"id", "name", "department", "salary", "age"}
+    assert set(rows[0].keys()) == {"id", "name", "department", "salary", "age", "dept_id"}
 
 
 # ---------------------------------------------------------------------------

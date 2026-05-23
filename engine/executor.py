@@ -4,7 +4,7 @@ from engine.storage import load_table
 def execute(plan: dict) -> list[dict]:
     """Dispatch a plan node and return the result as a list of dicts.
 
-    Supported node types: Scan, Filter, Project, Sort, Limit.
+    Supported node types: Scan, Filter, Project, Sort, Limit, Aggregate, Join.
     Raises ValueError for unknown node types.
     """
     node_type = plan.get("type")
@@ -20,6 +20,8 @@ def execute(plan: dict) -> list[dict]:
         return _limit(plan)
     if node_type == "Aggregate":
         return _aggregate(plan)
+    if node_type == "Join":
+        return _join(plan)
     raise ValueError(f"Unknown plan node type: {node_type!r}")
 
 
@@ -151,6 +153,45 @@ def _aggregate(plan: dict) -> list[dict]:
     if having:
         result = [r for r in result if eval_expr(having, r)]
 
+    return result
+
+
+def _table_name_of(plan: dict) -> str:
+    """Walk a plan subtree to find the root Scan's table name.
+
+    Used by _join to determine the prefix for each side's columns.
+    Traverses through Filter, Project, Sort, Limit, and Aggregate nodes
+    (all of which have a single 'source' child) until it reaches a Scan.
+    Raises ValueError for node types that cannot be resolved to a table name.
+    """
+    if plan["type"] == "Scan":
+        return plan["table"]
+    if "source" in plan:
+        return _table_name_of(plan["source"])
+    raise ValueError(f"Cannot derive table name from plan type {plan['type']!r}")
+
+
+def _join(plan: dict) -> list[dict]:
+    """Execute an INNER JOIN as a nested-loop join.
+
+    Both sides are executed fully before the loop. Every column in the result
+    is qualified as 'table.column' regardless of whether a name collision exists
+    — this avoids ambiguity when both tables share column names (e.g. 'id' or
+    'name'). NULL join keys never match (eval_expr returns False for NULL
+    comparisons, consistent with SQL three-valued logic).
+    """
+    assert plan["kind"] == "inner"
+    left_rows = execute(plan["left"])
+    right_rows = execute(plan["right"])
+    left_table = _table_name_of(plan["left"])
+    right_table = _table_name_of(plan["right"])
+    result = []
+    for left_row in left_rows:
+        for right_row in right_rows:
+            merged = {f"{left_table}.{k}": v for k, v in left_row.items()}
+            merged.update({f"{right_table}.{k}": v for k, v in right_row.items()})
+            if eval_expr(plan["on"], merged):
+                result.append(merged)
     return result
 
 
