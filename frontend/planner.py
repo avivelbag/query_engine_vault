@@ -28,7 +28,7 @@ def plan(sql: str) -> dict:
         if ast.get("where") is not None:
             source = {"type": "Filter", "source": source, "predicate": ast["where"]}
 
-        if cols != ["*"] and any(isinstance(c, dict) for c in cols):
+        if cols != ["*"] and any(isinstance(c, dict) and c.get("type") == "func" for c in cols):
             aggregates = []
             for func_call in cols:
                 fn = func_call["name"]

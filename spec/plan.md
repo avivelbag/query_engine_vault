@@ -48,7 +48,14 @@ Keeps only rows from its source node for which the predicate expression evaluate
 
 ### Project
 
-Keeps a strict ordered subset of columns from its source node.
+Keeps a strict ordered subset of columns from its source node. Each entry in `columns` is either:
+
+- a bare string (backward-compatible plain column name, equivalent to a ColRef with no alias), or
+- a column descriptor object: `{"expr": <expr_node>, "alias": <str|null>}`
+
+When `alias` is non-null the output row uses the alias as the key. When `alias` is null and the expression is a ColRef, the output key is the column name. For any other expression without an alias, the output key is the `repr` of the expression dict.
+
+Bare strings:
 
 ```json
 {
@@ -58,7 +65,20 @@ Keeps a strict ordered subset of columns from its source node.
 }
 ```
 
-`columns` is an ordered list of column names; the executor emits rows with only those columns in the listed order. `source` may be any plan node (recursive composition).
+With arithmetic expression and alias:
+
+```json
+{
+  "type": "Project",
+  "source": { "type": "Scan", "table": "employees", "columns": "*" },
+  "columns": [
+    "name",
+    {"expr": {"type": "binop", "op": "*", "left": {"type": "col", "name": "salary"}, "right": {"type": "lit", "value": 1.1}}, "alias": "raised_salary"}
+  ]
+}
+```
+
+`source` may be any plan node (recursive composition).
 
 ### Sort
 
@@ -145,13 +165,24 @@ A constant scalar value.
 
 #### BinOp
 
-A binary comparison. `op` must be one of `=`, `!=`, `<`, `<=`, `>`, `>=`.
+A binary operation. `op` is one of:
+
+- **Comparison** (`=`, `!=`, `<`, `<=`, `>`, `>=`): evaluates to a boolean.
+- **Arithmetic** (`+`, `-`, `*`, `/`): evaluates to a numeric scalar.
 
 ```json
 {"type": "binop", "op": "=", "left": <expr>, "right": <expr>}
 ```
 
-Type coercion in comparisons: if one operand is `int` and the other is `float`, both are promoted to `float`. Otherwise operands are compared as their Python types (string comparisons use Python `str` ordering).
+**Type coercion in comparisons:** if one operand is `int` and the other is `float`, both are promoted to `float`. Otherwise operands are compared as their Python types (string comparisons use Python `str` ordering).
+
+**Arithmetic type semantics:**
+- `int op int` → `int` for `+`, `-`, `*`; `float` for `/` (Python 3 division).
+- Any `float` operand → `float` result for all arithmetic ops.
+- `NULL` operand → `NULL` result (propagate; do not return zero or False).
+- Division by zero raises `ZeroDivisionError`; it is not silently coerced to `NULL`.
+
+**Operator precedence (when appearing inside larger expressions):** `*` and `/` bind tighter than `+` and `-`.
 
 #### FuncCall
 

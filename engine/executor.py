@@ -34,11 +34,40 @@ def _filter(plan: dict) -> list[dict]:
     return [row for row in rows if eval_expr(predicate, row)]
 
 
+def _normalise_col_desc(c) -> dict:
+    """Coerce a bare string or col-descriptor dict to canonical {expr, alias} form.
+
+    Bare strings are backward-compatible column names; they become a ColRef with
+    no alias so the rest of _project sees a uniform shape.
+    """
+    if isinstance(c, str):
+        return {"expr": {"type": "col", "name": c}, "alias": None}
+    return c
+
+
 def _project(plan: dict) -> list[dict]:
-    """Execute source node then keep only the declared columns in order."""
+    """Execute source then emit rows containing only the declared column descriptors.
+
+    Each descriptor is normalised to {expr, alias} via _normalise_col_desc.  The
+    output key is the alias when present; for a bare ColRef it is the column name;
+    for any other expression it is the repr of the expr dict.
+    """
     rows = execute(plan["source"])
-    cols = plan["columns"]
-    return [{c: row[c] for c in cols} for row in rows]
+    out = []
+    for row in rows:
+        new_row = {}
+        for c in plan["columns"]:
+            desc = _normalise_col_desc(c)
+            val = eval_expr(desc["expr"], row)
+            if desc["alias"] is not None:
+                key = desc["alias"]
+            elif desc["expr"]["type"] == "col":
+                key = desc["expr"]["name"]
+            else:
+                key = str(desc["expr"])
+            new_row[key] = val
+        out.append(new_row)
+    return out
 
 
 def _sort(plan: dict) -> list[dict]:
@@ -105,9 +134,13 @@ def eval_expr(expr: dict, row: dict):
     - {"type":"col","name":"<name>"}  → value of that column in row
     - {"type":"lit","value":<scalar>} → the constant scalar
     - {"type":"binop","op":"...","left":<expr>,"right":<expr>}
-        Operators: = != < <= > >=
-        NULL rule: any operand that is None yields False (SQL three-valued logic).
-        Type coercion: int vs float promotes both to float before comparing.
+        Arithmetic ops (+, -, *, /):
+          NULL operand → None (propagate).
+          Division by zero raises ZeroDivisionError.
+          int / int → float (Python 3 semantics).
+        Comparison ops (= != < <= > >=):
+          NULL operand → False (SQL three-valued logic).
+          int vs float promotes both to float before comparing.
     """
     t = expr["type"]
     if t == "col":
@@ -115,15 +148,26 @@ def eval_expr(expr: dict, row: dict):
     if t == "lit":
         return expr["value"]
     if t == "binop":
+        op = expr["op"]
         left = eval_expr(expr["left"], row)
         right = eval_expr(expr["right"], row)
+        if op in ("+", "-", "*", "/"):
+            if left is None or right is None:
+                return None
+            if op == "+":
+                return left + right
+            if op == "-":
+                return left - right
+            if op == "*":
+                return left * right
+            if op == "/":
+                return left / right  # ZeroDivisionError propagates to caller
         if left is None or right is None:
             return False
         if isinstance(left, int) and isinstance(right, float):
             left = float(left)
         elif isinstance(left, float) and isinstance(right, int):
             right = float(right)
-        op = expr["op"]
         if op == "=":
             return left == right
         if op == "!=":

@@ -29,6 +29,10 @@ from frontend.lexer import (
     TK_MAX,
     TK_LPAREN,
     TK_RPAREN,
+    TK_PLUS,
+    TK_MINUS,
+    TK_SLASH,
+    TK_AS,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -42,15 +46,19 @@ def parse(sql: str) -> dict:
     Only SELECT statements are supported. Returns:
         {
             "type": "select",
-            "columns": ["*"] | ["col1", ...],
+            "columns": ["*"] | list of column descriptors,
             "from": "<table_name>",
             "where": <predicate_expr> | None,
             "order_by": [{"column": "<col>", "direction": "asc"|"desc"}, ...],
             "limit": <int> | None,
         }
 
-    A predicate_expr is a BinOp dict from the expression sub-language defined in
-    spec/plan.md: {"type":"binop","op":"=","left":<expr>,"right":<expr>}.
+    Column descriptors in the SELECT list are one of:
+      - a bare string (backward-compatible plain column reference, no alias)
+      - {"expr": <expr_node>, "alias": <str>} for arithmetic or aliased columns
+
+    A predicate_expr is a BinOp dict: {"type":"binop","op":"...","left":<expr>,"right":<expr>}.
+    Arithmetic BinOps use ops "+", "-", "*", "/" and may appear in WHERE and SELECT.
 
     Raises ValueError on syntax errors.
     """
@@ -88,8 +96,8 @@ def parse(sql: str) -> dict:
                 )
             func_tok2 = consume(next_t.type)
             columns.append(_parse_agg_call(peek, consume, func_tok2))
-    elif t.type == TK_IDENT:
-        columns = [consume(TK_IDENT).value]
+    else:
+        columns = [_parse_select_col_expr(peek, consume)]
         while peek().type == TK_COMMA:
             consume(TK_COMMA)
             next_t = peek()
@@ -97,9 +105,7 @@ def parse(sql: str) -> dict:
                 raise ValueError(
                     "Cannot mix plain columns and aggregate functions in SELECT list"
                 )
-            columns.append(consume(TK_IDENT).value)
-    else:
-        raise ValueError(f"Expected *, aggregate function, or column name, got {t.type!r} ({t.value!r})")
+            columns.append(_parse_select_col_expr(peek, consume))
 
     consume(TK_FROM)
     table_token = consume(TK_IDENT)
@@ -178,14 +184,84 @@ def _parse_order_key(peek, consume) -> dict:
     return {"column": col, "direction": direction}
 
 
-def _parse_comparison(peek, consume) -> dict:
-    """Parse a single comparison: <identifier> <comp_op> <literal>.
+def _parse_expr_atom(peek, consume) -> dict:
+    """Parse an atomic expression: column reference, literal, or parenthesised expr.
 
-    Returns a BinOp expression dict as defined in spec/plan.md.
-    Only column-op-literal form is supported (compound AND/OR is out of scope).
+    Returns an expression dict (col, lit, or recursive binop via subexpression).
+    Raises ValueError if no valid atom is found.
     """
-    col_token = consume(TK_IDENT)
-    left = {"type": "col", "name": col_token.value}
+    t = peek()
+    if t.type == TK_IDENT:
+        return {"type": "col", "name": consume(TK_IDENT).value}
+    if t.type == TK_INT_LIT:
+        return {"type": "lit", "value": int(consume(TK_INT_LIT).value)}
+    if t.type == TK_FLOAT_LIT:
+        return {"type": "lit", "value": float(consume(TK_FLOAT_LIT).value)}
+    if t.type == TK_STRING_LIT:
+        return {"type": "lit", "value": consume(TK_STRING_LIT).value}
+    if t.type == TK_LPAREN:
+        consume(TK_LPAREN)
+        expr = _parse_expr_additive(peek, consume)
+        consume(TK_RPAREN)
+        return expr
+    raise ValueError(f"Expected expression, got {t.type!r} ({t.value!r})")
+
+
+def _parse_expr_multiplicative(peek, consume) -> dict:
+    """Parse multiplicative expressions: * and / (higher precedence), left-associative.
+
+    Calls _parse_expr_atom for each operand so that * and / bind tighter than + and -.
+    """
+    left = _parse_expr_atom(peek, consume)
+    while peek().type in (TK_STAR, TK_SLASH):
+        op_tok = peek()
+        consume(op_tok.type)
+        right = _parse_expr_atom(peek, consume)
+        op = "*" if op_tok.type == TK_STAR else "/"
+        left = {"type": "binop", "op": op, "left": left, "right": right}
+    return left
+
+
+def _parse_expr_additive(peek, consume) -> dict:
+    """Parse additive expressions: + and - (lower precedence), left-associative.
+
+    Calls _parse_expr_multiplicative for each operand so that + and - bind looser.
+    """
+    left = _parse_expr_multiplicative(peek, consume)
+    while peek().type in (TK_PLUS, TK_MINUS):
+        op_tok = peek()
+        consume(op_tok.type)
+        right = _parse_expr_multiplicative(peek, consume)
+        op = "+" if op_tok.type == TK_PLUS else "-"
+        left = {"type": "binop", "op": op, "left": left, "right": right}
+    return left
+
+
+def _parse_select_col_expr(peek, consume):
+    """Parse one SELECT column: an arithmetic expression with an optional AS alias.
+
+    Returns a bare string for a plain column reference with no alias (backward-compatible).
+    Returns {"expr": <expr_node>, "alias": <str>} when an alias is present or when the
+    expression is not a simple column reference (arithmetic, literal, etc.).
+    """
+    expr = _parse_expr_additive(peek, consume)
+    alias = None
+    if peek().type == TK_AS:
+        consume(TK_AS)
+        alias = consume(TK_IDENT).value
+    if alias is None and expr["type"] == "col":
+        return expr["name"]
+    return {"expr": expr, "alias": alias}
+
+
+def _parse_comparison(peek, consume) -> dict:
+    """Parse a WHERE predicate: <expr> <comp_op> <expr>.
+
+    Both sides are full arithmetic expressions, so `age * 2 > 50` is supported.
+    Only a single comparison is supported (no AND/OR).
+    Returns a BinOp expression dict as defined in spec/plan.md.
+    """
+    left = _parse_expr_additive(peek, consume)
 
     op_token = peek()
     if op_token.type not in _COMP_OPS:
@@ -195,19 +271,6 @@ def _parse_comparison(peek, consume) -> dict:
     consume(op_token.type)
     op = _COMP_OPS[op_token.type]
 
-    lit_token = peek()
-    if lit_token.type == TK_STRING_LIT:
-        consume(TK_STRING_LIT)
-        right = {"type": "lit", "value": lit_token.value}
-    elif lit_token.type == TK_INT_LIT:
-        consume(TK_INT_LIT)
-        right = {"type": "lit", "value": int(lit_token.value)}
-    elif lit_token.type == TK_FLOAT_LIT:
-        consume(TK_FLOAT_LIT)
-        right = {"type": "lit", "value": float(lit_token.value)}
-    else:
-        raise ValueError(
-            f"Expected a literal value, got {lit_token.type!r} ({lit_token.value!r})"
-        )
+    right = _parse_expr_additive(peek, consume)
 
     return {"type": "binop", "op": op, "left": left, "right": right}
