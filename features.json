@@ -40,5 +40,12 @@
     "plan_node": "Aggregate",
     "status": "supported",
     "query_dir": "queries/07-count-star"
+  },
+  {
+    "id": "arithmetic-expressions",
+    "sql": "SELECT col * lit AS alias FROM <table> [WHERE col * lit op lit]",
+    "plan_node": "Project",
+    "status": "supported",
+    "query_dir": "queries/09-arithmetic-select"
   }
 ]

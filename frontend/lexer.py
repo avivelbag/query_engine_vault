@@ -34,6 +34,11 @@ TK_MAX = "MAX"
 TK_LPAREN = "LPAREN"
 TK_RPAREN = "RPAREN"
 
+TK_PLUS = "PLUS"
+TK_MINUS = "MINUS"
+TK_SLASH = "SLASH"
+TK_AS = "AS"
+
 _KEYWORDS = {
     "SELECT": TK_SELECT,
     "FROM": TK_FROM,
@@ -48,6 +53,7 @@ _KEYWORDS = {
     "AVG": TK_AVG,
     "MIN": TK_MIN,
     "MAX": TK_MAX,
+    "AS": TK_AS,
 }
 
 
@@ -103,6 +109,28 @@ def tokenize(sql: str) -> list[Token]:
             else:
                 tokens.append(Token(TK_GT, ">"))
                 i += 1
+        elif c == "+":
+            tokens.append(Token(TK_PLUS, "+"))
+            i += 1
+        elif c == "-":
+            if i + 1 < len(sql) and sql[i + 1].isdigit():
+                j = i + 1
+                while j < len(sql) and sql[j].isdigit():
+                    j += 1
+                if j < len(sql) and sql[j] == "." and j + 1 < len(sql) and sql[j + 1].isdigit():
+                    j += 1
+                    while j < len(sql) and sql[j].isdigit():
+                        j += 1
+                    tokens.append(Token(TK_FLOAT_LIT, sql[i:j]))
+                else:
+                    tokens.append(Token(TK_INT_LIT, sql[i:j]))
+                i = j
+            else:
+                tokens.append(Token(TK_MINUS, "-"))
+                i += 1
+        elif c == "/":
+            tokens.append(Token(TK_SLASH, "/"))
+            i += 1
         elif c == "(":
             tokens.append(Token(TK_LPAREN, "("))
             i += 1
@@ -117,10 +145,8 @@ def tokenize(sql: str) -> list[Token]:
                 raise ValueError(f"Unterminated string literal starting at position {i}")
             tokens.append(Token(TK_STRING_LIT, sql[i + 1 : j]))
             i = j + 1
-        elif c.isdigit() or (c == "-" and i + 1 < len(sql) and sql[i + 1].isdigit()):
+        elif c.isdigit():
             j = i
-            if sql[j] == "-":
-                j += 1
             while j < len(sql) and sql[j].isdigit():
                 j += 1
             if j < len(sql) and sql[j] == "." and j + 1 < len(sql) and sql[j + 1].isdigit():

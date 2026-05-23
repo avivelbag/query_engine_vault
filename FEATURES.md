@@ -8,3 +8,4 @@
 | ORDER BY             | `SELECT ... FROM <table> ORDER BY col1 ASC, col2 DESC`  | Sort      | queries/05-order-by            |
 | LIMIT                | `SELECT ... FROM <table> ORDER BY ... LIMIT n`          | Limit     | queries/06-order-by-limit      |
 | Aggregate functions  | `SELECT COUNT(*)\|SUM(c)\|AVG(c)\|MIN(c)\|MAX(c) FROM …` | Aggregate | queries/07-count-star          |
+| Scalar arithmetic    | `SELECT col * lit AS alias … WHERE col op lit`          | Project   | queries/09-arithmetic-select   |
