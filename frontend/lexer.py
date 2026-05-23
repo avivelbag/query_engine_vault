@@ -26,6 +26,14 @@ TK_ASC = "ASC"
 TK_DESC = "DESC"
 TK_LIMIT = "LIMIT"
 
+TK_COUNT = "COUNT"
+TK_SUM = "SUM"
+TK_AVG = "AVG"
+TK_MIN = "MIN"
+TK_MAX = "MAX"
+TK_LPAREN = "LPAREN"
+TK_RPAREN = "RPAREN"
+
 _KEYWORDS = {
     "SELECT": TK_SELECT,
     "FROM": TK_FROM,
@@ -35,6 +43,11 @@ _KEYWORDS = {
     "ASC": TK_ASC,
     "DESC": TK_DESC,
     "LIMIT": TK_LIMIT,
+    "COUNT": TK_COUNT,
+    "SUM": TK_SUM,
+    "AVG": TK_AVG,
+    "MIN": TK_MIN,
+    "MAX": TK_MAX,
 }
 
 
@@ -90,6 +103,12 @@ def tokenize(sql: str) -> list[Token]:
             else:
                 tokens.append(Token(TK_GT, ">"))
                 i += 1
+        elif c == "(":
+            tokens.append(Token(TK_LPAREN, "("))
+            i += 1
+        elif c == ")":
+            tokens.append(Token(TK_RPAREN, ")"))
+            i += 1
         elif c == "'":
             j = i + 1
             while j < len(sql) and sql[j] != "'":

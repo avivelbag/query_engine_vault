@@ -18,6 +18,8 @@ def execute(plan: dict) -> list[dict]:
         return _sort(plan)
     if node_type == "Limit":
         return _limit(plan)
+    if node_type == "Aggregate":
+        return _aggregate(plan)
     raise ValueError(f"Unknown plan node type: {node_type!r}")
 
 
@@ -59,6 +61,41 @@ def _limit(plan: dict) -> list[dict]:
     An empty source or count larger than available rows returns all rows.
     """
     return execute(plan["source"])[: plan["count"]]
+
+
+def _aggregate(plan: dict) -> list[dict]:
+    """Execute source, compute each aggregate over all rows, return a single-row result.
+
+    NULL semantics (matches spec/plan.md):
+    - COUNT(*): counts every row regardless of NULLs.
+    - COUNT(col): counts non-NULL values in that column.
+    - SUM / AVG / MIN / MAX: ignore NULLs; return None when no non-NULL values exist.
+    - AVG on an empty set (or all-NULL column): None.
+    """
+    rows = execute(plan["source"])
+    result = {}
+    for agg in plan["aggregates"]:
+        fn = agg["function"]
+        col = agg["column"]
+        alias = agg["alias"]
+        if col == "*":
+            non_null = None
+        else:
+            vals = [r[col] for r in rows]
+            non_null = [v for v in vals if v is not None]
+        if fn == "count":
+            result[alias] = len(rows) if col == "*" else len(non_null)
+        elif fn == "sum":
+            result[alias] = sum(non_null) if non_null else None
+        elif fn == "avg":
+            result[alias] = sum(non_null) / len(non_null) if non_null else None
+        elif fn == "min":
+            result[alias] = min(non_null) if non_null else None
+        elif fn == "max":
+            result[alias] = max(non_null) if non_null else None
+        else:
+            raise ValueError(f"Unknown aggregate function: {fn!r}")
+    return [result]
 
 
 def eval_expr(expr: dict, row: dict):

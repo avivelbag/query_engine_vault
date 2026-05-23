@@ -7,3 +7,4 @@
 | WHERE filter         | `SELECT ... FROM <table> WHERE <col> <op> <literal>`    | Filter    | queries/03-where-equality      |
 | ORDER BY             | `SELECT ... FROM <table> ORDER BY col1 ASC, col2 DESC`  | Sort      | queries/05-order-by            |
 | LIMIT                | `SELECT ... FROM <table> ORDER BY ... LIMIT n`          | Limit     | queries/06-order-by-limit      |
+| Aggregate functions  | `SELECT COUNT(*)\|SUM(c)\|AVG(c)\|MIN(c)\|MAX(c) FROM …` | Aggregate | queries/07-count-star          |

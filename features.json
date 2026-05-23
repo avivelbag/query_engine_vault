@@ -33,5 +33,12 @@
     "plan_node": "Limit",
     "status": "supported",
     "query_dir": "queries/06-order-by-limit"
+  },
+  {
+    "id": "aggregate-functions",
+    "sql": "SELECT COUNT(*)|SUM(col)|AVG(col)|MIN(col)|MAX(col) FROM <table> [WHERE ...]",
+    "plan_node": "Aggregate",
+    "status": "supported",
+    "query_dir": "queries/07-count-star"
   }
 ]

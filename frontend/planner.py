@@ -6,12 +6,16 @@ def plan(sql: str) -> dict:
 
     Calls parse() then maps the AST to a plan node conforming to spec/plan.md.
     Evaluation order follows SQL semantics: Scan → Filter → Project → Sort → Limit.
+    When the SELECT list contains aggregate function calls, emits Aggregate instead
+    of Project (GROUP BY is out of scope; mixing aggregates and plain columns raises).
 
     - SELECT * FROM t                         → Scan
     - SELECT a, b FROM t                      → Project(Scan)
     - SELECT * FROM t WHERE ...               → Filter(Scan)
     - SELECT a FROM t WHERE ... ORDER BY c    → Sort(Project(Filter(Scan)))
     - SELECT a FROM t ORDER BY c LIMIT n      → Limit(Sort(Project(Scan)))
+    - SELECT COUNT(*) FROM t                  → Aggregate(Scan)
+    - SELECT MIN(x) FROM t WHERE ...          → Aggregate(Filter(Scan))
 
     Raises ValueError for unsupported statement types.
     """
@@ -23,6 +27,15 @@ def plan(sql: str) -> dict:
 
         if ast.get("where") is not None:
             source = {"type": "Filter", "source": source, "predicate": ast["where"]}
+
+        if cols != ["*"] and any(isinstance(c, dict) for c in cols):
+            aggregates = []
+            for func_call in cols:
+                fn = func_call["name"]
+                col = func_call["args"][0]["name"]
+                alias = f"{fn.upper()}({col})"
+                aggregates.append({"function": fn, "column": col, "alias": alias})
+            return {"type": "Aggregate", "source": source, "aggregates": aggregates}
 
         if cols != ["*"]:
             source = {"type": "Project", "source": source, "columns": cols}
