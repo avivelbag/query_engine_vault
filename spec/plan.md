@@ -91,6 +91,34 @@ Returns at most `count` rows from its source node, taken from the front of the r
 
 `count` must be a non-negative integer. A Limit node always sits *above* a Sort node so slicing occurs after ordering. An empty `source` returns `[]`.
 
+### Aggregate
+
+Consumes all rows from its source, applies one or more aggregate functions, and returns exactly **one result row** regardless of source cardinality (whole-table aggregation, no GROUP BY).
+
+```json
+{
+  "type": "Aggregate",
+  "source": { "type": "Scan", "table": "employees", "columns": "*" },
+  "aggregates": [
+    {"function": "count", "column": "*",      "alias": "COUNT(*)"},
+    {"function": "avg",   "column": "age",    "alias": "AVG(age)"},
+    {"function": "max",   "column": "salary", "alias": "MAX(salary)"}
+  ]
+}
+```
+
+Each entry in `aggregates` has:
+- `function`: one of `"count"`, `"sum"`, `"avg"`, `"min"`, `"max"` (lowercase).
+- `column`: a column name string, or `"*"` (only meaningful for `count`).
+- `alias`: the output column name for this aggregate in the result row.
+
+**NULL and empty-set semantics:**
+- `COUNT(*)` — counts every row, including rows with NULL columns. Returns `0` for an empty source.
+- `COUNT(col)` — counts non-NULL values in `col`. Returns `0` for an empty source or all-NULL column.
+- `SUM / AVG / MIN / MAX` — ignore NULL values. Return `None` (written as empty string in CSV) when the set of non-NULL values is empty (empty source or all-NULL column).
+
+GROUP BY is **not** supported by this node. Mixing aggregate calls and plain column references in the same SELECT list is a parse-time error.
+
 ## Row-Order Guarantee
 
 When a query includes `ORDER BY`, the engine returns rows in exactly the declared order. When no `ORDER BY` is present, **the engine makes no row-order guarantee**. Tests that compare results from unordered queries must normalise both sides (e.g. sort by all columns) before asserting equality.
@@ -124,6 +152,16 @@ A binary comparison. `op` must be one of `=`, `!=`, `<`, `<=`, `>`, `>=`.
 ```
 
 Type coercion in comparisons: if one operand is `int` and the other is `float`, both are promoted to `float`. Otherwise operands are compared as their Python types (string comparisons use Python `str` ordering).
+
+#### FuncCall
+
+An aggregate function invocation in the SELECT list. The planner converts FuncCall nodes into Aggregate plan-node descriptors; the executor never sees this expression type directly.
+
+```json
+{"type": "func", "name": "count", "args": [{"type": "col", "name": "*"}]}
+```
+
+`name` is the lowercase function name (`count`, `sum`, `avg`, `min`, `max`). `args` is a single-element list containing either a ColRef or `{"type":"col","name":"*"}` for `COUNT(*)`.
 
 ## NULL Handling
 

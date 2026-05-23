@@ -22,9 +22,18 @@ from frontend.lexer import (
     TK_ASC,
     TK_DESC,
     TK_LIMIT,
+    TK_COUNT,
+    TK_SUM,
+    TK_AVG,
+    TK_MIN,
+    TK_MAX,
+    TK_LPAREN,
+    TK_RPAREN,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
+
+_AGG_KEYWORDS = {TK_COUNT, TK_SUM, TK_AVG, TK_MIN, TK_MAX}
 
 
 def parse(sql: str) -> dict:
@@ -67,13 +76,30 @@ def parse(sql: str) -> dict:
     if t.type == TK_STAR:
         consume(TK_STAR)
         columns = ["*"]
+    elif t.type in _AGG_KEYWORDS:
+        func_tok = consume(t.type)
+        columns = [_parse_agg_call(peek, consume, func_tok)]
+        while peek().type == TK_COMMA:
+            consume(TK_COMMA)
+            next_t = peek()
+            if next_t.type not in _AGG_KEYWORDS:
+                raise ValueError(
+                    "Cannot mix aggregate functions and plain columns in SELECT list"
+                )
+            func_tok2 = consume(next_t.type)
+            columns.append(_parse_agg_call(peek, consume, func_tok2))
     elif t.type == TK_IDENT:
         columns = [consume(TK_IDENT).value]
         while peek().type == TK_COMMA:
             consume(TK_COMMA)
+            next_t = peek()
+            if next_t.type in _AGG_KEYWORDS:
+                raise ValueError(
+                    "Cannot mix plain columns and aggregate functions in SELECT list"
+                )
             columns.append(consume(TK_IDENT).value)
     else:
-        raise ValueError(f"Expected * or column name, got {t.type!r} ({t.value!r})")
+        raise ValueError(f"Expected *, aggregate function, or column name, got {t.type!r} ({t.value!r})")
 
     consume(TK_FROM)
     table_token = consume(TK_IDENT)
@@ -113,6 +139,28 @@ def parse(sql: str) -> dict:
         "order_by": order_by,
         "limit": limit,
     }
+
+
+def _parse_agg_call(peek, consume, func_token) -> dict:
+    """Parse the argument list of an aggregate function call.
+
+    Expects the opening parenthesis, then either * or a column identifier, then
+    the closing parenthesis.  Returns a FuncCall expression dict as defined in
+    spec/plan.md: {"type":"func","name":<str>,"args":[<expr>]}.
+    """
+    consume(TK_LPAREN)
+    t = peek()
+    if t.type == TK_STAR:
+        consume(TK_STAR)
+        arg = {"type": "col", "name": "*"}
+    elif t.type == TK_IDENT:
+        arg = {"type": "col", "name": consume(TK_IDENT).value}
+    else:
+        raise ValueError(
+            f"Expected * or column name inside aggregate call, got {t.type!r} ({t.value!r})"
+        )
+    consume(TK_RPAREN)
+    return {"type": "func", "name": func_token.value.lower(), "args": [arg]}
 
 
 def _parse_order_key(peek, consume) -> dict:
