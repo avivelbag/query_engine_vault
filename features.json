@@ -68,5 +68,12 @@
     "plan_node": "Join",
     "status": "supported",
     "query_dir": "queries/13-inner-join"
+  },
+  {
+    "id": "distinct",
+    "sql": "SELECT DISTINCT col1 [, col2 ...] FROM <table>",
+    "plan_node": "Distinct",
+    "status": "supported",
+    "query_dir": "queries/14-distinct"
   }
 ]

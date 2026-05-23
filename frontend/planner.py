@@ -71,6 +71,9 @@ def plan(sql: str) -> dict:
     elif cols != ["*"]:
         source = {"type": "Project", "source": source, "columns": cols}
 
+    if ast.get("distinct"):
+        source = {"type": "Distinct", "source": source}
+
     if ast.get("order_by"):
         source = {"type": "Sort", "source": source, "keys": ast["order_by"]}
 

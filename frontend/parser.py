@@ -39,6 +39,7 @@ from frontend.lexer import (
     TK_JOIN,
     TK_INNER,
     TK_ON,
+    TK_DISTINCT,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -89,6 +90,11 @@ def parse(sql: str) -> dict:
         return t
 
     consume(TK_SELECT)
+
+    distinct = False
+    if peek().type == TK_DISTINCT:
+        consume(TK_DISTINCT)
+        distinct = True
 
     t = peek()
     if t.type == TK_STAR:
@@ -155,6 +161,7 @@ def parse(sql: str) -> dict:
 
     return {
         "type": "select",
+        "distinct": distinct,
         "columns": columns,
         "from": table_token.value,
         "join": join_info,
