@@ -45,6 +45,8 @@ TK_JOIN = "JOIN"
 TK_INNER = "INNER"
 TK_ON = "ON"
 TK_DISTINCT = "DISTINCT"
+TK_IN = "IN"
+TK_NOT = "NOT"
 
 _KEYWORDS = {
     "SELECT": TK_SELECT,
@@ -67,6 +69,8 @@ _KEYWORDS = {
     "INNER": TK_INNER,
     "ON": TK_ON,
     "DISTINCT": TK_DISTINCT,
+    "IN": TK_IN,
+    "NOT": TK_NOT,
 }
 
 

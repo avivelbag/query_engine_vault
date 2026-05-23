@@ -273,4 +273,14 @@ def eval_expr(expr: dict, row: dict):
         if op == ">=":
             return left >= right
         raise ValueError(f"Unknown operator: {op!r}")
+    if t == "in":
+        lhs = eval_expr(expr["expr"], row)
+        if lhs is None:
+            return False
+        matched = any(
+            lhs == eval_expr(v, row)
+            for v in expr["values"]
+            if eval_expr(v, row) is not None
+        )
+        return matched if not expr["negated"] else not matched
     raise ValueError(f"Unknown expression type: {t!r}")

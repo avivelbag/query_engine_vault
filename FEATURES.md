@@ -13,3 +13,4 @@
 | HAVING               | `SELECT col, AGG(*) AS alias … GROUP BY col HAVING …`   | Aggregate | queries/12-group-by-having     |
 | INNER JOIN           | `SELECT t1.col, t2.col FROM t1 INNER JOIN t2 ON t1.k = t2.k` | Join | queries/13-inner-join      |
 | SELECT DISTINCT      | `SELECT DISTINCT col1 [, col2] FROM <table>`                  | Distinct | queries/14-distinct    |
+| IN / NOT IN          | `SELECT ... FROM <table> WHERE col IN (v1, v2, ...)`          | Filter   | queries/15-in-operator |

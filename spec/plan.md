@@ -198,6 +198,30 @@ A binary operation. `op` is one of:
 
 **Operator precedence (when appearing inside larger expressions):** `*` and `/` bind tighter than `+` and `-`.
 
+#### In
+
+A membership test. Evaluates `expr` and checks whether the result equals any value in the `values` list.
+
+```json
+{
+  "type": "in",
+  "negated": false,
+  "expr": {"type": "col", "name": "department"},
+  "values": [
+    {"type": "lit", "value": "Engineering"},
+    {"type": "lit", "value": "Marketing"}
+  ]
+}
+```
+
+`negated: true` inverts the result (`NOT IN`). Each entry in `values` may be any expression (literal, column reference, arithmetic).
+
+**NULL semantics:**
+- If `expr` evaluates to `NULL` (`None`): result is `false` for both `IN` and `NOT IN`.
+- A `NULL` value inside `values` is silently skipped and never matches anything.
+
+These rules deviate slightly from SQL three-valued logic (where `NULL IN (...)` would be `unknown`), but are the most useful and least surprising behaviour for this engine.
+
 #### FuncCall
 
 An aggregate function invocation in the SELECT list. The planner converts FuncCall nodes into Aggregate plan-node descriptors; the executor never sees this expression type directly.
