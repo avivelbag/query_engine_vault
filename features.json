@@ -82,5 +82,12 @@
     "plan_node": "Filter",
     "status": "supported",
     "query_dir": "queries/15-in-operator"
+  },
+  {
+    "id": "is-null",
+    "sql": "SELECT ... FROM <table> WHERE col IS NULL / col IS NOT NULL",
+    "plan_node": "Filter",
+    "status": "supported",
+    "query_dir": "queries/16-is-null"
   }
 ]

@@ -47,6 +47,8 @@ TK_ON = "ON"
 TK_DISTINCT = "DISTINCT"
 TK_IN = "IN"
 TK_NOT = "NOT"
+TK_IS = "IS"
+TK_NULL = "NULL"
 
 _KEYWORDS = {
     "SELECT": TK_SELECT,
@@ -71,6 +73,8 @@ _KEYWORDS = {
     "DISTINCT": TK_DISTINCT,
     "IN": TK_IN,
     "NOT": TK_NOT,
+    "IS": TK_IS,
+    "NULL": TK_NULL,
 }
 
 

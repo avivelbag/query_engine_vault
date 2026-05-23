@@ -5,9 +5,10 @@ This document is the canonical definition of plan nodes. Both the frontend (plan
 ## Type Coercion
 
 When reading a CSV, each cell value is coerced in order:
-1. Attempt `int` parse — if successful, the value is an integer.
-2. Attempt `float` parse — if successful, the value is a float.
-3. Otherwise, the value remains a string.
+1. Empty string → `None` (SQL NULL).
+2. Attempt `int` parse — if successful, the value is an integer.
+3. Attempt `float` parse — if successful, the value is a float.
+4. Otherwise, the value remains a string.
 
 This rule is applied by `engine/storage.py` and must be reflected in any test fixture that reconstructs expected output.
 
@@ -221,6 +222,16 @@ A membership test. Evaluates `expr` and checks whether the result equals any val
 - A `NULL` value inside `values` is silently skipped and never matches anything.
 
 These rules deviate slightly from SQL three-valued logic (where `NULL IN (...)` would be `unknown`), but are the most useful and least surprising behaviour for this engine.
+
+#### IsNull
+
+Tests whether an expression evaluates to `None` (SQL NULL).
+
+```json
+{"type": "isnull", "negated": false, "expr": {"type": "col", "name": "manager_id"}}
+```
+
+`negated: false` returns `true` when the expression result is `None`; `negated: true` inverts the result (`IS NOT NULL`). The result is always a Python `bool`, never `None` — this is the one predicate that does not propagate NULL.
 
 #### FuncCall
 

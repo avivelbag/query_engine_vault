@@ -4,16 +4,20 @@
 
 A small employee table used to drive the first query (`SELECT * FROM employees`).
 
-| Column     | Type    | Description                                      |
-|------------|---------|--------------------------------------------------|
-| id         | integer | Unique employee identifier                       |
-| name       | string  | Employee full name                               |
-| department | string  | Department name (denormalised, for legacy queries) |
-| salary     | integer | Annual salary in USD                             |
-| age        | integer | Employee age                                     |
-| dept_id    | integer | Foreign key into `departments.id`                |
+| Column     | Type             | Description                                      |
+|------------|------------------|--------------------------------------------------|
+| id         | integer          | Unique employee identifier                       |
+| name       | string           | Employee full name                               |
+| department | string           | Department name (denormalised, for legacy queries) |
+| salary     | integer          | Annual salary in USD                             |
+| age        | integer          | Employee age                                     |
+| dept_id    | integer          | Foreign key into `departments.id`                |
+| manager_id | integer or NULL  | id of the employee's direct manager; empty (NULL) for top-level employees |
 
 5 rows, mixed int/string types, covering Engineering, Marketing, and HR departments.
+Alice and Carol have no manager (`manager_id` is NULL); Bob, Dave, and Eve each
+report to another employee. An empty CSV cell is stored as `None` (SQL NULL) by
+the storage layer.
 
 ## departments.csv
 
