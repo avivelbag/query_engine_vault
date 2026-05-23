@@ -89,5 +89,19 @@
     "plan_node": "Filter",
     "status": "supported",
     "query_dir": "queries/16-is-null"
+  },
+  {
+    "id": "left-join",
+    "sql": "SELECT t1.col, t2.col FROM t1 [AS a] LEFT [OUTER] JOIN t2 [AS b] ON a.key = b.key",
+    "plan_node": "Join",
+    "status": "supported",
+    "query_dir": "queries/18-left-join"
+  },
+  {
+    "id": "right-join",
+    "sql": "SELECT t1.col, t2.col FROM t1 [AS a] RIGHT [OUTER] JOIN t2 [AS b] ON a.key = b.key",
+    "plan_node": "Join",
+    "status": "supported",
+    "query_dir": null
   }
 ]

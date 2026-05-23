@@ -245,12 +245,12 @@ An aggregate function invocation in the SELECT list. The planner converts FuncCa
 
 ### Join
 
-Combines rows from two independent plan subtrees using a nested-loop strategy. Only `kind: "inner"` is supported.
+Combines rows from two independent plan subtrees using a nested-loop strategy. `join_type` controls which unmatched rows, if any, appear in the result.
 
 ```json
 {
   "type": "Join",
-  "kind": "inner",
+  "join_type": "inner",
   "left": {
     "type": "Scan", "table": "employees", "columns": "*"
   },
@@ -265,11 +265,16 @@ Combines rows from two independent plan subtrees using a nested-loop strategy. O
 }
 ```
 
-`left` and `right` may be any plan subtrees. `on` is an equality predicate using the same expression grammar as the `predicate` field of a Filter node. Column refs in `on` use qualified names (`table.column`).
+`join_type` is one of `"inner"`, `"left"`, or `"right"`. `left` and `right` may be any plan subtrees. `on` is an equality predicate using the same expression grammar as the `predicate` field of a Filter node. Column refs in `on` use qualified names (`qualifier.column`, where the qualifier is the table alias when one is declared, otherwise the table name).
 
-**Column-name policy:** Every column in a Join result row is qualified as `table.column` regardless of whether a name collision exists between the two sides. For example, if both tables have a column `name`, the output contains `employees.name` and `departments.name` — neither appears under the bare key `name`. This eliminates ambiguity when both sides share column names. All downstream nodes (Project, Sort, Filter, etc.) must reference join-result columns by their qualified names.
+**Column-name policy:** Every column in a Join result row is qualified as `qualifier.column` regardless of whether a name collision exists between the two sides. The qualifier is the alias declared in the Scan node when present, otherwise the table name. For example, `FROM employees AS e JOIN departments AS d` produces columns named `e.col` and `d.col`. All downstream nodes (Project, Sort, Filter, etc.) must reference join-result columns by their qualified names.
 
-**NULL-in-join-key rule:** A NULL join key never matches any value, including another NULL. This follows SQL three-valued logic: the ON predicate delegates to `eval_expr`, which returns `False` for any comparison involving `None`. As a result, rows where the join key is NULL are silently excluded from the result, consistent with INNER JOIN semantics in standard SQL.
+**NULL-in-join-key rule:** A NULL join key never matches any value, including another NULL. This follows SQL three-valued logic: the ON predicate delegates to `eval_expr`, which returns `False` for any comparison involving `None`.
+
+**Outer-join NULL-padding semantics:**
+- `join_type: "left"` — after the nested-loop inner matching, any left row that found no matching right row is emitted with every right-side column set to `None` (SQL NULL). The set of right-side columns is derived from the union of keys across all right rows.
+- `join_type: "right"` — symmetrically, any right row that was never matched by any left row is emitted with every left-side column set to `None`.
+- `join_type: "inner"` — only matched pairs are emitted; unmatched rows on either side are discarded (existing behaviour, unchanged).
 
 ### Distinct
 

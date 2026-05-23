@@ -49,6 +49,9 @@ TK_IN = "IN"
 TK_NOT = "NOT"
 TK_IS = "IS"
 TK_NULL = "NULL"
+TK_LEFT = "LEFT"
+TK_RIGHT = "RIGHT"
+TK_OUTER = "OUTER"
 
 _KEYWORDS = {
     "SELECT": TK_SELECT,
@@ -75,6 +78,9 @@ _KEYWORDS = {
     "NOT": TK_NOT,
     "IS": TK_IS,
     "NULL": TK_NULL,
+    "LEFT": TK_LEFT,
+    "RIGHT": TK_RIGHT,
+    "OUTER": TK_OUTER,
 }
 
 

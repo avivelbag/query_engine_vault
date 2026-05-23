@@ -21,14 +21,22 @@ the storage layer.
 
 ## departments.csv
 
-A department reference table added to support INNER JOIN queries.
+A department reference table added to support INNER JOIN queries and extended for
+LEFT/RIGHT JOIN tests.
 
-| Column | Type    | Description                            |
-|--------|---------|----------------------------------------|
-| id     | integer | Unique department identifier           |
-| name   | string  | Department name                        |
-| budget | integer | Annual departmental budget in USD      |
+| Column   | Type    | Description                            |
+|----------|---------|----------------------------------------|
+| id       | integer | Unique department identifier           |
+| name     | string  | Department name                        |
+| location | string  | City where the department is located   |
+| budget   | integer | Annual departmental budget in USD      |
 
-3 rows: Engineering (id=1), Marketing (id=2), HR (id=3). All employees have a
-matching `dept_id`, so an INNER JOIN over `employees.dept_id = departments.id`
-returns all 5 employee rows.
+3 rows: Engineering (id=1, New York), Marketing (id=2, London),
+Human Resources (id=3, Berlin).
+
+All employees have a valid `dept_id`, so `INNER JOIN … ON dept_id = id` returns
+all 5 employee rows. However, the `employees.department` string for Dave is
+`"HR"`, which intentionally does not match the `departments.name` value
+`"Human Resources"`. This deliberate mismatch ensures that a `LEFT JOIN … ON
+e.department = d.name` emits Dave with a NULL `location`, exercising the
+NULL-padding path of the outer-join executor.

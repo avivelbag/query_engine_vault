@@ -1,4 +1,4 @@
-id,name,budget
-1,Engineering,500000
-2,Marketing,200000
-3,HR,150000
+id,name,location,budget
+1,Engineering,New York,500000
+2,Marketing,London,200000
+3,Human Resources,Berlin,150000

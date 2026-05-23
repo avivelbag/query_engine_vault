@@ -44,6 +44,9 @@ from frontend.lexer import (
     TK_NOT,
     TK_IS,
     TK_NULL,
+    TK_LEFT,
+    TK_RIGHT,
+    TK_OUTER,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -112,15 +115,40 @@ def parse(sql: str) -> dict:
 
     consume(TK_FROM)
     table_token = consume(TK_IDENT)
+    from_alias = None
+    if peek().type == TK_AS:
+        consume(TK_AS)
+        from_alias = consume(TK_IDENT).value
 
     join_info = None
-    if peek().type == TK_INNER:
-        consume(TK_INNER)
+    if peek().type in (TK_INNER, TK_LEFT, TK_RIGHT):
+        join_type = "inner"
+        if peek().type == TK_INNER:
+            consume(TK_INNER)
+        elif peek().type == TK_LEFT:
+            consume(TK_LEFT)
+            join_type = "left"
+            if peek().type == TK_OUTER:
+                consume(TK_OUTER)
+        elif peek().type == TK_RIGHT:
+            consume(TK_RIGHT)
+            join_type = "right"
+            if peek().type == TK_OUTER:
+                consume(TK_OUTER)
         consume(TK_JOIN)
         join_table_token = consume(TK_IDENT)
+        join_alias = None
+        if peek().type == TK_AS:
+            consume(TK_AS)
+            join_alias = consume(TK_IDENT).value
         consume(TK_ON)
         join_on = _parse_comparison(peek, consume)
-        join_info = {"table": join_table_token.value, "on": join_on}
+        join_info = {
+            "table": join_table_token.value,
+            "alias": join_alias,
+            "on": join_on,
+            "join_type": join_type,
+        }
 
     predicate = None
     if peek().type == TK_WHERE:
@@ -168,6 +196,7 @@ def parse(sql: str) -> dict:
         "distinct": distinct,
         "columns": columns,
         "from": table_token.value,
+        "from_alias": from_alias,
         "join": join_info,
         "where": predicate,
         "group_by": group_by,

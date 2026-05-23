@@ -181,7 +181,7 @@ def _distinct(plan: dict) -> list[dict]:
 
 
 def _table_name_of(plan: dict) -> str:
-    """Walk a plan subtree to find the root Scan's table name.
+    """Walk a plan subtree to find the root Scan's qualifier (alias if set, else table name).
 
     Used by _join to determine the prefix for each side's columns.
     Traverses through Filter, Project, Sort, Limit, and Aggregate nodes
@@ -189,33 +189,52 @@ def _table_name_of(plan: dict) -> str:
     Raises ValueError for node types that cannot be resolved to a table name.
     """
     if plan["type"] == "Scan":
-        return plan["table"]
+        return plan.get("alias") or plan["table"]
     if "source" in plan:
         return _table_name_of(plan["source"])
     raise ValueError(f"Cannot derive table name from plan type {plan['type']!r}")
 
 
 def _join(plan: dict) -> list[dict]:
-    """Execute an INNER JOIN as a nested-loop join.
+    """Execute a nested-loop join supporting INNER, LEFT OUTER, and RIGHT OUTER semantics.
 
-    Both sides are executed fully before the loop. Every column in the result
-    is qualified as 'table.column' regardless of whether a name collision exists
-    — this avoids ambiguity when both tables share column names (e.g. 'id' or
-    'name'). NULL join keys never match (eval_expr returns False for NULL
-    comparisons, consistent with SQL three-valued logic).
+    Every column in the result is qualified as 'qualifier.column' where the qualifier
+    is the table alias when present, otherwise the table name. NULL join keys never
+    match (eval_expr returns False for NULL comparisons).
+
+    LEFT JOIN: unmatched left rows are emitted with None for every right-side column.
+    RIGHT JOIN: unmatched right rows are emitted with None for every left-side column.
+    INNER JOIN: only matched rows are emitted (existing behaviour, unchanged).
     """
-    assert plan["kind"] == "inner"
+    join_type = plan.get("join_type", "inner")
     left_rows = execute(plan["left"])
     right_rows = execute(plan["right"])
     left_table = _table_name_of(plan["left"])
     right_table = _table_name_of(plan["right"])
+
+    right_cols = {f"{right_table}.{k}" for row in right_rows for k in row} if right_rows else set()
+    left_cols = {f"{left_table}.{k}" for row in left_rows for k in row} if left_rows else set()
+
+    matched_right: set[int] = set()
     result = []
     for left_row in left_rows:
-        for right_row in right_rows:
-            merged = {f"{left_table}.{k}": v for k, v in left_row.items()}
-            merged.update({f"{right_table}.{k}": v for k, v in right_row.items()})
+        merged_left = {f"{left_table}.{k}": v for k, v in left_row.items()}
+        left_matched = False
+        for ri, right_row in enumerate(right_rows):
+            merged = {**merged_left, **{f"{right_table}.{k}": v for k, v in right_row.items()}}
             if eval_expr(plan["on"], merged):
                 result.append(merged)
+                left_matched = True
+                matched_right.add(ri)
+        if not left_matched and join_type == "left":
+            result.append({**merged_left, **{k: None for k in right_cols}})
+
+    if join_type == "right":
+        for ri, right_row in enumerate(right_rows):
+            if ri not in matched_right:
+                merged_right = {f"{right_table}.{k}": v for k, v in right_row.items()}
+                result.append({**{k: None for k in left_cols}, **merged_right})
+
     return result
 
 
