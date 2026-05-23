@@ -47,5 +47,19 @@
     "plan_node": "Project",
     "status": "supported",
     "query_dir": "queries/09-arithmetic-select"
+  },
+  {
+    "id": "group-by",
+    "sql": "SELECT col, AGG(*) AS alias FROM <table> GROUP BY col [ORDER BY col]",
+    "plan_node": "Aggregate",
+    "status": "supported",
+    "query_dir": "queries/11-group-by"
+  },
+  {
+    "id": "group-by-having",
+    "sql": "SELECT col, AGG(*) AS alias FROM <table> GROUP BY col HAVING alias op lit",
+    "plan_node": "Aggregate",
+    "status": "supported",
+    "query_dir": "queries/12-group-by-having"
   }
 ]

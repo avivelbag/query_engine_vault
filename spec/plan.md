@@ -113,7 +113,11 @@ Returns at most `count` rows from its source node, taken from the front of the r
 
 ### Aggregate
 
-Consumes all rows from its source, applies one or more aggregate functions, and returns exactly **one result row** regardless of source cardinality (whole-table aggregation, no GROUP BY).
+Consumes all rows from its source, partitions them by the optional `group_by` keys, applies one or more aggregate functions per partition, and optionally filters the resulting rows with `having`.
+
+**Whole-table aggregation** (when `group_by` is absent or `[]`): returns exactly one result row.
+
+**GROUP BY** (when `group_by` is non-empty): returns one result row per distinct key tuple. The group columns are included in each output row alongside the aggregate values.
 
 ```json
 {
@@ -123,7 +127,13 @@ Consumes all rows from its source, applies one or more aggregate functions, and 
     {"function": "count", "column": "*",      "alias": "COUNT(*)"},
     {"function": "avg",   "column": "age",    "alias": "AVG(age)"},
     {"function": "max",   "column": "salary", "alias": "MAX(salary)"}
-  ]
+  ],
+  "group_by": ["department"],
+  "having": {
+    "type": "binop", "op": ">",
+    "left":  {"type": "col", "name": "cnt"},
+    "right": {"type": "lit", "value": 1}
+  }
 }
 ```
 
@@ -132,12 +142,16 @@ Each entry in `aggregates` has:
 - `column`: a column name string, or `"*"` (only meaningful for `count`).
 - `alias`: the output column name for this aggregate in the result row.
 
-**NULL and empty-set semantics:**
-- `COUNT(*)` — counts every row, including rows with NULL columns. Returns `0` for an empty source.
-- `COUNT(col)` — counts non-NULL values in `col`. Returns `0` for an empty source or all-NULL column.
-- `SUM / AVG / MIN / MAX` — ignore NULL values. Return `None` (written as empty string in CSV) when the set of non-NULL values is empty (empty source or all-NULL column).
+`group_by` (optional): an ordered list of column name strings to partition by. Omit or set to `[]` for whole-table aggregation.
 
-GROUP BY is **not** supported by this node. Mixing aggregate calls and plain column references in the same SELECT list is a parse-time error.
+`having` (optional): a predicate expression applied to each aggregate output row after aggregation. Uses the same expression grammar as the `predicate` field of a Filter node. The expression may reference aggregate aliases (e.g. `cnt`) or group columns.
+
+**NULL and empty-set semantics:**
+- `COUNT(*)` — counts every row in the group, including rows with NULL columns. Returns `0` for an empty source.
+- `COUNT(col)` — counts non-NULL values in `col` within the group. Returns `0` for an empty source or all-NULL column.
+- `SUM / AVG / MIN / MAX` — ignore NULL values within the group. Return `None` (written as empty string in CSV) when the set of non-NULL values is empty (empty source or all-NULL column).
+
+Mixing aggregate calls and plain column references in the same SELECT list requires `group_by` to be non-empty; this is enforced at plan time.
 
 ## Row-Order Guarantee
 
