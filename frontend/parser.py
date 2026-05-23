@@ -33,6 +33,8 @@ from frontend.lexer import (
     TK_MINUS,
     TK_SLASH,
     TK_AS,
+    TK_GROUP,
+    TK_HAVING,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -49,16 +51,20 @@ def parse(sql: str) -> dict:
             "columns": ["*"] | list of column descriptors,
             "from": "<table_name>",
             "where": <predicate_expr> | None,
+            "group_by": [<col_name>, ...],
+            "having": <predicate_expr> | None,
             "order_by": [{"column": "<col>", "direction": "asc"|"desc"}, ...],
             "limit": <int> | None,
         }
 
     Column descriptors in the SELECT list are one of:
       - a bare string (backward-compatible plain column reference, no alias)
-      - {"expr": <expr_node>, "alias": <str>} for arithmetic or aliased columns
+      - {"type":"func","name":<str>,"args":[<expr>]} for aggregate calls (no explicit alias)
+      - {"type":"func","name":<str>,"args":[<expr>],"alias":<str>} for aliased aggregate calls
+      - {"expr": <expr_node>, "alias": <str>} for arithmetic or aliased plain columns
 
-    A predicate_expr is a BinOp dict: {"type":"binop","op":"...","left":<expr>,"right":<expr>}.
-    Arithmetic BinOps use ops "+", "-", "*", "/" and may appear in WHERE and SELECT.
+    Mixing aggregate calls and plain columns is allowed at parse time; the planner
+    enforces that GROUP BY must be present when both are used.
 
     Raises ValueError on syntax errors.
     """
@@ -84,28 +90,11 @@ def parse(sql: str) -> dict:
     if t.type == TK_STAR:
         consume(TK_STAR)
         columns = ["*"]
-    elif t.type in _AGG_KEYWORDS:
-        func_tok = consume(t.type)
-        columns = [_parse_agg_call(peek, consume, func_tok)]
-        while peek().type == TK_COMMA:
-            consume(TK_COMMA)
-            next_t = peek()
-            if next_t.type not in _AGG_KEYWORDS:
-                raise ValueError(
-                    "Cannot mix aggregate functions and plain columns in SELECT list"
-                )
-            func_tok2 = consume(next_t.type)
-            columns.append(_parse_agg_call(peek, consume, func_tok2))
     else:
-        columns = [_parse_select_col_expr(peek, consume)]
+        columns = [_parse_one_select_col(peek, consume)]
         while peek().type == TK_COMMA:
             consume(TK_COMMA)
-            next_t = peek()
-            if next_t.type in _AGG_KEYWORDS:
-                raise ValueError(
-                    "Cannot mix plain columns and aggregate functions in SELECT list"
-                )
-            columns.append(_parse_select_col_expr(peek, consume))
+            columns.append(_parse_one_select_col(peek, consume))
 
     consume(TK_FROM)
     table_token = consume(TK_IDENT)
@@ -114,6 +103,20 @@ def parse(sql: str) -> dict:
     if peek().type == TK_WHERE:
         consume(TK_WHERE)
         predicate = _parse_comparison(peek, consume)
+
+    group_by = []
+    if peek().type == TK_GROUP:
+        consume(TK_GROUP)
+        consume(TK_BY)
+        group_by.append(consume(TK_IDENT).value)
+        while peek().type == TK_COMMA:
+            consume(TK_COMMA)
+            group_by.append(consume(TK_IDENT).value)
+
+    having = None
+    if peek().type == TK_HAVING:
+        consume(TK_HAVING)
+        having = _parse_comparison(peek, consume)
 
     order_by = []
     if peek().type == TK_ORDER:
@@ -142,9 +145,30 @@ def parse(sql: str) -> dict:
         "columns": columns,
         "from": table_token.value,
         "where": predicate,
+        "group_by": group_by,
+        "having": having,
         "order_by": order_by,
         "limit": limit,
     }
+
+
+def _parse_one_select_col(peek, consume):
+    """Parse one item in the SELECT list: aggregate call (with optional AS alias) or expression.
+
+    Aggregate calls may carry an explicit AS alias; the alias is stored under the
+    key "alias" in the returned func dict.  When no AS is present the key is absent,
+    preserving backward-compatible dict equality for existing tests.
+    Plain expressions delegate to _parse_select_col_expr.
+    """
+    t = peek()
+    if t.type in _AGG_KEYWORDS:
+        func_tok = consume(t.type)
+        agg = _parse_agg_call(peek, consume, func_tok)
+        if peek().type == TK_AS:
+            consume(TK_AS)
+            agg = {**agg, "alias": consume(TK_IDENT).value}
+        return agg
+    return _parse_select_col_expr(peek, consume)
 
 
 def _parse_agg_call(peek, consume, func_token) -> dict:

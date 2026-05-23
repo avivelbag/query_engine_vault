@@ -93,38 +93,65 @@ def _limit(plan: dict) -> list[dict]:
 
 
 def _aggregate(plan: dict) -> list[dict]:
-    """Execute source, compute each aggregate over all rows, return a single-row result.
+    """Execute source, partition by group_by keys, compute aggregates per group, apply HAVING.
+
+    When group_by is absent or empty the node behaves as a whole-table aggregate and
+    returns exactly one result row (backward-compatible with existing queries 07–08).
+
+    When group_by is non-empty, one output row is produced per distinct key tuple.
+    The HAVING predicate (same expression grammar as Filter) is evaluated against
+    each aggregate output row and can reference aggregate aliases (e.g. cnt > 1).
 
     NULL semantics (matches spec/plan.md):
-    - COUNT(*): counts every row regardless of NULLs.
-    - COUNT(col): counts non-NULL values in that column.
+    - COUNT(*): counts every row in the group regardless of NULLs.
+    - COUNT(col): counts non-NULL values in that column within the group.
     - SUM / AVG / MIN / MAX: ignore NULLs; return None when no non-NULL values exist.
-    - AVG on an empty set (or all-NULL column): None.
     """
     rows = execute(plan["source"])
-    result = {}
-    for agg in plan["aggregates"]:
-        fn = agg["function"]
-        col = agg["column"]
-        alias = agg["alias"]
-        if col == "*":
-            non_null = None
-        else:
-            vals = [r[col] for r in rows]
-            non_null = [v for v in vals if v is not None]
-        if fn == "count":
-            result[alias] = len(rows) if col == "*" else len(non_null)
-        elif fn == "sum":
-            result[alias] = sum(non_null) if non_null else None
-        elif fn == "avg":
-            result[alias] = sum(non_null) / len(non_null) if non_null else None
-        elif fn == "min":
-            result[alias] = min(non_null) if non_null else None
-        elif fn == "max":
-            result[alias] = max(non_null) if non_null else None
-        else:
-            raise ValueError(f"Unknown aggregate function: {fn!r}")
-    return [result]
+    group_keys = plan.get("group_by") or []
+
+    if not group_keys:
+        groups: dict = {"": rows}
+    else:
+        groups = {}
+        for row in rows:
+            key = tuple(row[k] for k in group_keys)
+            groups.setdefault(key, []).append(row)
+
+    result = []
+    for key, group_rows in groups.items():
+        out: dict = {}
+        if group_keys:
+            for col, val in zip(group_keys, key):
+                out[col] = val
+        for agg in plan["aggregates"]:
+            fn = agg["function"]
+            col = agg["column"]
+            alias = agg["alias"]
+            if col == "*":
+                non_null = None
+            else:
+                vals = [r[col] for r in group_rows]
+                non_null = [v for v in vals if v is not None]
+            if fn == "count":
+                out[alias] = len(group_rows) if col == "*" else len(non_null)
+            elif fn == "sum":
+                out[alias] = sum(non_null) if non_null else None
+            elif fn == "avg":
+                out[alias] = sum(non_null) / len(non_null) if non_null else None
+            elif fn == "min":
+                out[alias] = min(non_null) if non_null else None
+            elif fn == "max":
+                out[alias] = max(non_null) if non_null else None
+            else:
+                raise ValueError(f"Unknown aggregate function: {fn!r}")
+        result.append(out)
+
+    having = plan.get("having")
+    if having:
+        result = [r for r in result if eval_expr(having, r)]
+
+    return result
 
 
 def eval_expr(expr: dict, row: dict):

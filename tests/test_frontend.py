@@ -69,7 +69,7 @@ def test_lexer_unexpected_character():
 
 def test_parser_select_star():
     ast = parse("SELECT * FROM employees;")
-    assert ast == {"type": "select", "columns": ["*"], "from": "employees", "where": None, "order_by": [], "limit": None}
+    assert ast == {"type": "select", "columns": ["*"], "from": "employees", "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
 
 
 def test_parser_no_semicolon():
@@ -79,7 +79,7 @@ def test_parser_no_semicolon():
 
 def test_parser_lowercase():
     ast = parse("select * from orders")
-    assert ast == {"type": "select", "columns": ["*"], "from": "orders", "where": None, "order_by": [], "limit": None}
+    assert ast == {"type": "select", "columns": ["*"], "from": "orders", "where": None, "group_by": [], "having": None, "order_by": [], "limit": None}
 
 
 def test_parser_missing_from_raises():

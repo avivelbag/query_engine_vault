@@ -38,6 +38,8 @@ TK_PLUS = "PLUS"
 TK_MINUS = "MINUS"
 TK_SLASH = "SLASH"
 TK_AS = "AS"
+TK_GROUP = "GROUP"
+TK_HAVING = "HAVING"
 
 _KEYWORDS = {
     "SELECT": TK_SELECT,
@@ -54,6 +56,8 @@ _KEYWORDS = {
     "MIN": TK_MIN,
     "MAX": TK_MAX,
     "AS": TK_AS,
+    "GROUP": TK_GROUP,
+    "HAVING": TK_HAVING,
 }
 
 

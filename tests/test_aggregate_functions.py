@@ -101,15 +101,15 @@ def test_parser_aggregate_with_where():
     assert ast["where"]["type"] == "binop"
 
 
-def test_parser_mixed_aggregate_plain_raises():
-    """Mixing aggregate functions and plain columns must raise ValueError."""
+def test_planner_mixed_aggregate_plain_raises():
+    """Mixing aggregate functions and plain columns without GROUP BY must raise at plan time."""
     with pytest.raises(ValueError, match="mix"):
-        parse("SELECT COUNT(*), name FROM employees")
+        plan("SELECT COUNT(*), name FROM employees")
 
 
-def test_parser_plain_then_aggregate_raises():
+def test_planner_plain_then_aggregate_raises():
     with pytest.raises(ValueError, match="mix"):
-        parse("SELECT name, COUNT(*) FROM employees")
+        plan("SELECT name, COUNT(*) FROM employees")
 
 
 def test_parser_aggregate_lowercase_keyword():
