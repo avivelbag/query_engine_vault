@@ -1,4 +1,4 @@
-# Query 09 — GROUP BY with COUNT
+# Query 11 — GROUP BY with COUNT
 
 Exercises per-group aggregation: counts employees in each department.
 

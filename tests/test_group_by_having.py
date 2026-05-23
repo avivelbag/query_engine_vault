@@ -317,17 +317,17 @@ def test_execute_group_by_having_equal():
 
 
 # ---------------------------------------------------------------------------
-# End-to-end convergence: queries 09 and 10
+# End-to-end convergence: queries 11 and 12
 # ---------------------------------------------------------------------------
 
 
-def test_convergence_query_09_group_by():
-    """Query 09 result matches expected.csv exactly (ORDER BY makes it deterministic)."""
+def test_convergence_query_11_group_by():
+    """Query 11 result matches expected.csv exactly (ORDER BY makes it deterministic)."""
     from pathlib import Path
     import csv
     from engine.storage import _coerce
 
-    query_dir = Path(__file__).parent.parent / "queries" / "09-group-by"
+    query_dir = Path(__file__).parent.parent / "queries" / "11-group-by"
     sql = (query_dir / "query.sql").read_text().strip()
 
     with open(query_dir / "expected.csv", newline="") as f:
@@ -337,13 +337,13 @@ def test_convergence_query_09_group_by():
     assert result == expected
 
 
-def test_convergence_query_10_group_by_having():
-    """Query 10 result matches expected.csv exactly (ORDER BY makes it deterministic)."""
+def test_convergence_query_12_group_by_having():
+    """Query 12 result matches expected.csv exactly (ORDER BY makes it deterministic)."""
     from pathlib import Path
     import csv
     from engine.storage import _coerce
 
-    query_dir = Path(__file__).parent.parent / "queries" / "10-group-by-having"
+    query_dir = Path(__file__).parent.parent / "queries" / "12-group-by-having"
     sql = (query_dir / "query.sql").read_text().strip()
 
     with open(query_dir / "expected.csv", newline="") as f:

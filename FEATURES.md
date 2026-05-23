@@ -9,5 +9,5 @@
 | LIMIT                | `SELECT ... FROM <table> ORDER BY ... LIMIT n`          | Limit     | queries/06-order-by-limit      |
 | Aggregate functions  | `SELECT COUNT(*)\|SUM(c)\|AVG(c)\|MIN(c)\|MAX(c) FROM …` | Aggregate | queries/07-count-star          |
 | Scalar arithmetic    | `SELECT col * lit AS alias … WHERE col op lit`          | Project   | queries/09-arithmetic-select   |
-| GROUP BY             | `SELECT col, AGG(*) AS alias … GROUP BY col`            | Aggregate | queries/09-group-by            |
-| HAVING               | `SELECT col, AGG(*) AS alias … GROUP BY col HAVING …`   | Aggregate | queries/10-group-by-having     |
+| GROUP BY             | `SELECT col, AGG(*) AS alias … GROUP BY col`            | Aggregate | queries/11-group-by            |
+| HAVING               | `SELECT col, AGG(*) AS alias … GROUP BY col HAVING …`   | Aggregate | queries/12-group-by-having     |

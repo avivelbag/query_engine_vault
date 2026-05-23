@@ -1,4 +1,4 @@
-# Query 10 — GROUP BY with HAVING
+# Query 12 — GROUP BY with HAVING
 
 Exercises HAVING to filter aggregate groups: keeps only departments with more than one employee.
 
