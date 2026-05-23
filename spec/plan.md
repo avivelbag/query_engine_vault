@@ -236,6 +236,25 @@ Combines rows from two independent plan subtrees using a nested-loop strategy. O
 
 **NULL-in-join-key rule:** A NULL join key never matches any value, including another NULL. This follows SQL three-valued logic: the ON predicate delegates to `eval_expr`, which returns `False` for any comparison involving `None`. As a result, rows where the join key is NULL are silently excluded from the result, consistent with INNER JOIN semantics in standard SQL.
 
+### Distinct
+
+Deduplicates rows from its source by full-row equality. The output is the sequence of first-occurrence rows — row order after deduplication is the order of first occurrence (stable dedup).
+
+```json
+{
+  "type": "Distinct",
+  "source": {
+    "type": "Project",
+    "source": {"type": "Scan", "table": "employees", "columns": "*"},
+    "columns": ["department"]
+  }
+}
+```
+
+`source` may be any plan node. The Distinct node sits above the projection and below Sort/Limit in the standard plan order: Scan → [Filter] → [Project] → [Distinct] → [Sort] → [Limit].
+
+**NULL-equality rule for DISTINCT:** For deduplication only, two `NULL` values in the same column position are considered equal (`NULL == NULL` is `true`). This is the one place in the engine where `NULL == NULL` holds — it matches standard SQL DISTINCT behaviour, which must group all NULL values together rather than treating each as distinct from the others.
+
 ## NULL Handling
 
 Any comparison involving a NULL value (Python `None`) yields `false`, regardless of the operator. This matches SQL three-valued logic: `NULL = NULL` is `false`, `NULL != NULL` is `false`, etc.

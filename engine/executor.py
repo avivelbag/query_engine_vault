@@ -22,6 +22,8 @@ def execute(plan: dict) -> list[dict]:
         return _aggregate(plan)
     if node_type == "Join":
         return _join(plan)
+    if node_type == "Distinct":
+        return _distinct(plan)
     raise ValueError(f"Unknown plan node type: {node_type!r}")
 
 
@@ -153,6 +155,28 @@ def _aggregate(plan: dict) -> list[dict]:
     if having:
         result = [r for r in result if eval_expr(having, r)]
 
+    return result
+
+
+def _distinct(plan: dict) -> list[dict]:
+    """Execute source node then emit only the first occurrence of each unique row.
+
+    Rows are keyed by a tuple of all column values in emission order. Two NULL
+    values in the same column position are treated as equal for deduplication
+    (NULL == NULL for DISTINCT — unlike SQL comparisons where NULL = NULL is
+    unknown). Row order is the order of first occurrence (stable dedup).
+
+    A list is used for `seen` rather than a set because future value types may be
+    unhashable. This is O(n²) in the number of distinct rows; acceptable for the
+    small tables this engine targets.
+    """
+    seen: list = []
+    result: list[dict] = []
+    for row in execute(plan["source"]):
+        key = tuple(row[k] for k in row)
+        if key not in seen:
+            seen.append(key)
+            result.append(row)
     return result
 
 
