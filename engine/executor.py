@@ -4,7 +4,7 @@ from engine.storage import load_table
 def execute(plan: dict) -> list[dict]:
     """Dispatch a plan node and return the result as a list of dicts.
 
-    Supported node types: Scan, Filter, Project.
+    Supported node types: Scan, Filter, Project, Sort, Limit.
     Raises ValueError for unknown node types.
     """
     node_type = plan.get("type")
@@ -14,6 +14,10 @@ def execute(plan: dict) -> list[dict]:
         return _filter(plan)
     if node_type == "Project":
         return _project(plan)
+    if node_type == "Sort":
+        return _sort(plan)
+    if node_type == "Limit":
+        return _limit(plan)
     raise ValueError(f"Unknown plan node type: {node_type!r}")
 
 
@@ -33,6 +37,28 @@ def _project(plan: dict) -> list[dict]:
     rows = execute(plan["source"])
     cols = plan["columns"]
     return [{c: row[c] for c in cols} for row in rows]
+
+
+def _sort(plan: dict) -> list[dict]:
+    """Execute source node then return rows ordered by the key list.
+
+    Uses Python's stable sort iterated in reverse key order so that the first
+    key in the list is the primary sort key (multi-column sort via stable sort).
+    An empty source returns [] without error.
+    """
+    rows = execute(plan["source"])
+    for key in reversed(plan["keys"]):
+        col = key["column"]
+        rows = sorted(rows, key=lambda r: r[col], reverse=(key["direction"] == "desc"))
+    return rows
+
+
+def _limit(plan: dict) -> list[dict]:
+    """Execute source node then return only the first count rows.
+
+    An empty source or count larger than available rows returns all rows.
+    """
+    return execute(plan["source"])[: plan["count"]]
 
 
 def eval_expr(expr: dict, row: dict):

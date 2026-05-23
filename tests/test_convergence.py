@@ -19,11 +19,24 @@ def _load_expected(csv_path: Path) -> list[dict]:
         return [{k: _coerce(v) for k, v in row.items()} for row in csv.DictReader(f)]
 
 
+def _sort_rows(rows: list[dict]) -> list[dict]:
+    """Sort rows by all columns (stringified) for order-independent comparison."""
+    if not rows:
+        return rows
+    cols = sorted(rows[0].keys())
+    return sorted(rows, key=lambda r: tuple(str(r.get(c, "")) for c in cols))
+
+
 @pytest.mark.parametrize("query_dir", _query_dirs, ids=[d.name for d in _query_dirs])
 def test_convergence(query_dir):
     sql = (query_dir / "query.sql").read_text().strip()
     expected = _load_expected(query_dir / "expected.csv")
-    assert execute(plan(sql)) == expected
+    result = execute(plan(sql))
+    # Queries without ORDER BY make no row-order guarantee; sort both sides before comparing.
+    if "ORDER BY" not in sql.upper():
+        assert _sort_rows(result) == _sort_rows(expected)
+    else:
+        assert result == expected
 
 
 def test_convergence_employees_direct():
