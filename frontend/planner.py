@@ -26,13 +26,17 @@ def plan(sql: str) -> dict:
         raise ValueError(f"Unsupported statement type: {ast['type']!r}")
 
     cols = ast["columns"]
-    scan = {"type": "Scan", "table": ast["from"], "columns": "*"}
+    scan: dict = {"type": "Scan", "table": ast["from"], "columns": "*"}
+    if ast.get("from_alias"):
+        scan["alias"] = ast["from_alias"]
 
     if ast.get("join"):
-        right_scan = {"type": "Scan", "table": ast["join"]["table"], "columns": "*"}
+        right_scan: dict = {"type": "Scan", "table": ast["join"]["table"], "columns": "*"}
+        if ast["join"].get("alias"):
+            right_scan["alias"] = ast["join"]["alias"]
         source: dict = {
             "type": "Join",
-            "kind": "inner",
+            "join_type": ast["join"]["join_type"],
             "left": scan,
             "right": right_scan,
             "on": ast["join"]["on"],

@@ -142,7 +142,7 @@ def test_planner_join_node_shape():
         "SELECT employees.name FROM employees INNER JOIN departments ON employees.dept_id = departments.id"
     )
     join = p["source"]
-    assert join["kind"] == "inner"
+    assert join["join_type"] == "inner"
     assert join["left"] == {"type": "Scan", "table": "employees", "columns": "*"}
     assert join["right"] == {"type": "Scan", "table": "departments", "columns": "*"}
     assert join["on"]["op"] == "="
@@ -207,7 +207,7 @@ def _make_join_plan(tmp_path, left_csv, right_csv, on_expr):
     storage_mod._DATA_DIR = tmp_path
     return {
         "type": "Join",
-        "kind": "inner",
+        "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": on_expr,
@@ -221,7 +221,7 @@ def test_execute_join_happy_path(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id,val\n1,a\n2,b\n")
     (tmp_path / "right.csv").write_text("fk,label\n1,x\n3,z\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -243,7 +243,7 @@ def test_execute_join_all_columns_qualified(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id,name\n1,Alice\n")
     (tmp_path / "right.csv").write_text("id,name\n1,Engineering\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -267,7 +267,7 @@ def test_execute_join_no_matches(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id\n1\n2\n")
     (tmp_path / "right.csv").write_text("fk\n99\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -286,7 +286,7 @@ def test_execute_join_empty_left(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id\n")
     (tmp_path / "right.csv").write_text("id\n1\n2\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -305,7 +305,7 @@ def test_execute_join_empty_right(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id\n1\n2\n")
     (tmp_path / "right.csv").write_text("id\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -328,7 +328,7 @@ def test_execute_join_null_key_never_matches(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id,fk\n1,1\n2,\n")  # row 2 has empty fk → string ""
     (tmp_path / "right.csv").write_text("id\n1\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -350,7 +350,7 @@ def test_execute_join_cartesian_product_shape(tmp_path, monkeypatch):
     (tmp_path / "left.csv").write_text("id\n1\n2\n3\n")
     (tmp_path / "right.csv").write_text("id\n1\n2\n")
     p = {
-        "type": "Join", "kind": "inner",
+        "type": "Join", "join_type": "inner",
         "left": {"type": "Scan", "table": "left", "columns": "*"},
         "right": {"type": "Scan", "table": "right", "columns": "*"},
         "on": {
@@ -388,7 +388,7 @@ def test_e2e_inner_join_dept_names():
     assert by_name["Alice"] == "Engineering"
     assert by_name["Bob"] == "Marketing"
     assert by_name["Carol"] == "Engineering"
-    assert by_name["Dave"] == "HR"
+    assert by_name["Dave"] == "Human Resources"
     assert by_name["Eve"] == "Marketing"
 
 

@@ -15,3 +15,5 @@
 | SELECT DISTINCT      | `SELECT DISTINCT col1 [, col2] FROM <table>`                  | Distinct | queries/14-distinct    |
 | IN / NOT IN          | `SELECT ... FROM <table> WHERE col IN (v1, v2, ...)`          | Filter   | queries/15-in-operator |
 | IS NULL / IS NOT NULL | `SELECT ... FROM <table> WHERE col IS NULL / IS NOT NULL`    | Filter   | queries/16-is-null     |
+| LEFT JOIN            | `SELECT a.col, b.col FROM t1 AS a LEFT [OUTER] JOIN t2 AS b ON a.k = b.k` | Join | queries/18-left-join |
+| RIGHT JOIN           | `SELECT a.col, b.col FROM t1 AS a RIGHT [OUTER] JOIN t2 AS b ON a.k = b.k` | Join | —            |
