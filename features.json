@@ -19,5 +19,19 @@
     "plan_node": "Filter",
     "status": "supported",
     "query_dir": "queries/03-where-equality"
+  },
+  {
+    "id": "order-by",
+    "sql": "SELECT ... FROM <table> ORDER BY col1 [ASC|DESC], col2 [ASC|DESC]",
+    "plan_node": "Sort",
+    "status": "supported",
+    "query_dir": "queries/05-order-by"
+  },
+  {
+    "id": "limit",
+    "sql": "SELECT ... FROM <table> ORDER BY ... LIMIT <n>",
+    "plan_node": "Limit",
+    "status": "supported",
+    "query_dir": "queries/06-order-by-limit"
   }
 ]

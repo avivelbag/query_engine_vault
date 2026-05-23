@@ -60,6 +60,41 @@ Keeps a strict ordered subset of columns from its source node.
 
 `columns` is an ordered list of column names; the executor emits rows with only those columns in the listed order. `source` may be any plan node (recursive composition).
 
+### Sort
+
+Orders its source rows by one or more keys. Uses Python's stable sort so equal keys preserve relative input order.
+
+```json
+{
+  "type": "Sort",
+  "source": { "type": "Scan", "table": "employees", "columns": "*" },
+  "keys": [
+    {"column": "department", "direction": "asc"},
+    {"column": "name", "direction": "asc"}
+  ]
+}
+```
+
+`keys` is an ordered list of sort keys; the first entry is the primary key. Each key has a `column` (string) and a `direction` of `"asc"` or `"desc"`. An empty `source` returns `[]`.
+
+### Limit
+
+Returns at most `count` rows from its source node, taken from the front of the result.
+
+```json
+{
+  "type": "Limit",
+  "source": { "type": "Sort", "keys": [...] },
+  "count": 3
+}
+```
+
+`count` must be a non-negative integer. A Limit node always sits *above* a Sort node so slicing occurs after ordering. An empty `source` returns `[]`.
+
+## Row-Order Guarantee
+
+When a query includes `ORDER BY`, the engine returns rows in exactly the declared order. When no `ORDER BY` is present, **the engine makes no row-order guarantee**. Tests that compare results from unordered queries must normalise both sides (e.g. sort by all columns) before asserting equality.
+
 ## Expression Sub-language
 
 Expressions are used in predicate positions (e.g. the `predicate` field of a Filter node). They are not plan nodes and must not appear as top-level plan nodes.

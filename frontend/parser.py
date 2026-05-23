@@ -17,6 +17,11 @@ from frontend.lexer import (
     TK_STRING_LIT,
     TK_INT_LIT,
     TK_FLOAT_LIT,
+    TK_ORDER,
+    TK_BY,
+    TK_ASC,
+    TK_DESC,
+    TK_LIMIT,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -26,10 +31,14 @@ def parse(sql: str) -> dict:
     """Parse a SQL string and return an AST dict.
 
     Only SELECT statements are supported. Returns:
-        {"type": "select", "columns": ["*"], "from": "<table_name>", "where": None}
-      or
-        {"type": "select", "columns": ["col1", ...], "from": "<table_name>",
-         "where": <predicate_expr> | None}
+        {
+            "type": "select",
+            "columns": ["*"] | ["col1", ...],
+            "from": "<table_name>",
+            "where": <predicate_expr> | None,
+            "order_by": [{"column": "<col>", "direction": "asc"|"desc"}, ...],
+            "limit": <int> | None,
+        }
 
     A predicate_expr is a BinOp dict from the expression sub-language defined in
     spec/plan.md: {"type":"binop","op":"=","left":<expr>,"right":<expr>}.
@@ -74,6 +83,21 @@ def parse(sql: str) -> dict:
         consume(TK_WHERE)
         predicate = _parse_comparison(peek, consume)
 
+    order_by = []
+    if peek().type == TK_ORDER:
+        consume(TK_ORDER)
+        consume(TK_BY)
+        order_by.append(_parse_order_key(peek, consume))
+        while peek().type == TK_COMMA:
+            consume(TK_COMMA)
+            order_by.append(_parse_order_key(peek, consume))
+
+    limit = None
+    if peek().type == TK_LIMIT:
+        consume(TK_LIMIT)
+        limit_tok = consume(TK_INT_LIT)
+        limit = int(limit_tok.value)
+
     if peek().type == TK_SEMI:
         consume(TK_SEMI)
 
@@ -81,7 +105,29 @@ def parse(sql: str) -> dict:
         t = peek()
         raise ValueError(f"Unexpected token {t.type!r} ({t.value!r}) after statement")
 
-    return {"type": "select", "columns": columns, "from": table_token.value, "where": predicate}
+    return {
+        "type": "select",
+        "columns": columns,
+        "from": table_token.value,
+        "where": predicate,
+        "order_by": order_by,
+        "limit": limit,
+    }
+
+
+def _parse_order_key(peek, consume) -> dict:
+    """Parse a single ORDER BY key: <column> [ASC|DESC].
+
+    Direction defaults to 'asc' when omitted.
+    """
+    col = consume(TK_IDENT).value
+    direction = "asc"
+    if peek().type == TK_ASC:
+        consume(TK_ASC)
+    elif peek().type == TK_DESC:
+        consume(TK_DESC)
+        direction = "desc"
+    return {"column": col, "direction": direction}
 
 
 def _parse_comparison(peek, consume) -> dict:
