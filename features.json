@@ -75,5 +75,12 @@
     "plan_node": "Distinct",
     "status": "supported",
     "query_dir": "queries/14-distinct"
+  },
+  {
+    "id": "in-operator",
+    "sql": "SELECT ... FROM <table> WHERE col IN (v1, v2, ...) / col NOT IN (...)",
+    "plan_node": "Filter",
+    "status": "supported",
+    "query_dir": "queries/15-in-operator"
   }
 ]

@@ -40,6 +40,8 @@ from frontend.lexer import (
     TK_INNER,
     TK_ON,
     TK_DISTINCT,
+    TK_IN,
+    TK_NOT,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -307,13 +309,36 @@ def _parse_select_col_expr(peek, consume):
 
 
 def _parse_comparison(peek, consume) -> dict:
-    """Parse a WHERE predicate: <expr> <comp_op> <expr>.
+    """Parse a WHERE predicate: binary comparison or IN / NOT IN membership test.
 
-    Both sides are full arithmetic expressions, so `age * 2 > 50` is supported.
-    Only a single comparison is supported (no AND/OR).
-    Returns a BinOp expression dict as defined in spec/plan.md.
+    Both sides of a binary comparison are full arithmetic expressions, so
+    `age * 2 > 50` is supported.  After parsing the left-hand side the parser
+    checks for `IN` or `NOT IN`; if found it consumes the parenthesised value
+    list and returns an `in` node.  Otherwise it falls through to the standard
+    comparison operator path.
+
+    NOT is consumed optimistically when seen after an expression: in this grammar
+    the only valid continuation after NOT is IN, so the parser raises ValueError
+    if IN does not follow.
+
+    Only a single predicate is supported (no AND/OR).
+    Returns an expression dict as defined in spec/plan.md.
     """
     left = _parse_expr_additive(peek, consume)
+
+    if peek().type == TK_NOT:
+        consume(TK_NOT)
+        if peek().type != TK_IN:
+            t = peek()
+            raise ValueError(
+                f"Expected IN after NOT in predicate, got {t.type!r} ({t.value!r})"
+            )
+        consume(TK_IN)
+        return _parse_in_list(peek, consume, left, negated=True)
+
+    if peek().type == TK_IN:
+        consume(TK_IN)
+        return _parse_in_list(peek, consume, left, negated=False)
 
     op_token = peek()
     if op_token.type not in _COMP_OPS:
@@ -326,3 +351,21 @@ def _parse_comparison(peek, consume) -> dict:
     right = _parse_expr_additive(peek, consume)
 
     return {"type": "binop", "op": op, "left": left, "right": right}
+
+
+def _parse_in_list(peek, consume, lhs: dict, negated: bool) -> dict:
+    """Parse the parenthesised value list of an IN / NOT IN predicate.
+
+    Expects the token stream to be positioned just after the IN keyword.
+    Returns an `in` expression node as defined in spec/plan.md:
+        {"type": "in", "negated": <bool>, "expr": <lhs>, "values": [<expr>, ...]}
+    Values may be any primary expression (literals, column references, arithmetic).
+    An empty value list raises ValueError.
+    """
+    consume(TK_LPAREN)
+    values = [_parse_expr_additive(peek, consume)]
+    while peek().type == TK_COMMA:
+        consume(TK_COMMA)
+        values.append(_parse_expr_additive(peek, consume))
+    consume(TK_RPAREN)
+    return {"type": "in", "negated": negated, "expr": lhs, "values": values}
