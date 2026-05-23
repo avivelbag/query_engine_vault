@@ -5,6 +5,8 @@ _DATA_DIR = Path(__file__).parent.parent / "data"
 
 
 def _coerce(value: str):
+    if value == "":
+        return None
     try:
         return int(value)
     except ValueError:

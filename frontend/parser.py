@@ -42,6 +42,8 @@ from frontend.lexer import (
     TK_DISTINCT,
     TK_IN,
     TK_NOT,
+    TK_IS,
+    TK_NULL,
 )
 
 _COMP_OPS = {TK_EQ: "=", TK_NEQ: "!=", TK_LT: "<", TK_LTE: "<=", TK_GT: ">", TK_GTE: ">="}
@@ -325,6 +327,15 @@ def _parse_comparison(peek, consume) -> dict:
     Returns an expression dict as defined in spec/plan.md.
     """
     left = _parse_expr_additive(peek, consume)
+
+    if peek().type == TK_IS:
+        consume(TK_IS)
+        negated = False
+        if peek().type == TK_NOT:
+            consume(TK_NOT)
+            negated = True
+        consume(TK_NULL)
+        return {"type": "isnull", "negated": negated, "expr": left}
 
     if peek().type == TK_NOT:
         consume(TK_NOT)

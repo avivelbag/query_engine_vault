@@ -34,6 +34,10 @@ def test_coerce_zero():
     assert isinstance(_coerce("0"), int)
 
 
+def test_coerce_empty_string_returns_none():
+    assert _coerce("") is None
+
+
 # ---------------------------------------------------------------------------
 # load_table
 # ---------------------------------------------------------------------------
@@ -42,7 +46,7 @@ def test_coerce_zero():
 def test_load_table_employees():
     rows = load_table("employees")
     assert len(rows) == 5
-    assert rows[0] == {"id": 1, "name": "Alice", "department": "Engineering", "salary": 95000, "age": 28, "dept_id": 1}
+    assert rows[0] == {"id": 1, "name": "Alice", "department": "Engineering", "salary": 95000, "age": 28, "dept_id": 1, "manager_id": None}
 
 
 def test_load_table_returns_list_of_dicts():

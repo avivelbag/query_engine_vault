@@ -283,4 +283,8 @@ def eval_expr(expr: dict, row: dict):
             if eval_expr(v, row) is not None
         )
         return matched if not expr["negated"] else not matched
+    if t == "isnull":
+        val = eval_expr(expr["expr"], row)
+        result = val is None
+        return result if not expr["negated"] else not result
     raise ValueError(f"Unknown expression type: {t!r}")
